@@ -5,7 +5,7 @@ services:
     region: frankfurt # change to your preferred region
     plan: free        # upgrade to starter/standard for production
 
-    buildCommand: npm install && npm run build
+    buildCommand: npm install --legacy-peer-deps && npm run build
     startCommand: npm start
 
     envVars:
@@ -13,8 +13,7 @@ services:
         value: "20"
       - key: HOST
         value: "0.0.0.0"
-      - key: PORT
-        value: "3000"
+      # NOTE: Do NOT set PORT here — Render injects it automatically
 
       # Supabase — set these in the Render dashboard (do NOT commit real values)
       - key: PUBLIC_SUPABASE_URL
