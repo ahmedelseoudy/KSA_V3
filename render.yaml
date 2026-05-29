@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: ksa-crm
+    runtime: node
+    region: frankfurt # change to your preferred region
+    plan: free        # upgrade to starter/standard for production
+
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: HOST
+        value: "0.0.0.0"
+      - key: PORT
+        value: "3000"
+
+      # Supabase — set these in the Render dashboard (do NOT commit real values)
+      - key: PUBLIC_SUPABASE_URL
+        sync: false
+      - key: PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+
+      # App
+      - key: PUBLIC_APP_URL
+        sync: false   # e.g. https://ksa-crm.onrender.com
+
+      # Email (Resend)
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        value: "KSA CRM <onboarding@resend.dev>"

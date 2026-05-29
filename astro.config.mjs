@@ -1,12 +1,12 @@
 import { defineConfig } from 'astro/config';
 import tailwind from '@astrojs/tailwind';
 import react from '@astrojs/react';
-import vercel from '@astrojs/vercel/serverless';
+import node from '@astrojs/node';
 
 export default defineConfig({
-  output: 'server', // Changed from 'static' to enable server-side authentication
-  adapter: vercel({
-    runtime: 'nodejs20.x'
+  output: 'server', // SSR mode required for authentication
+  adapter: node({
+    mode: 'standalone'
   }),
   integrations: [tailwind(), react()],
   vite: {
