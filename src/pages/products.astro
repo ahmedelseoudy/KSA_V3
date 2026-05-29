@@ -332,7 +332,16 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
 
       if (resp.ok) {
         resultDiv.className = 'mb-4 p-3 rounded-lg bg-green-900/30 text-green-300';
-        resultDiv.innerHTML = `<p>Successfully processed ${result.created} products.</p>${result.errors?.length ? `<p class="text-yellow-300 mt-1">Errors: ${result.errors.join(', ')}</p>` : ''}`;
+        resultDiv.innerHTML = `<p class="font-semibold">✓ Upload complete! ${result.created} products saved.</p>${result.errors?.length ? `<p class="text-yellow-300 mt-1 text-xs">Warnings: ${result.errors.join(', ')}</p>` : ''}<p class="text-green-400/60 text-xs mt-2">Closing in 3 seconds…</p>`;
+        resultDiv.classList.remove('hidden');
+        progressDiv.classList.add('hidden');
+        loadProducts();
+        loadCompanies();
+        setTimeout(() => {
+          document.getElementById('bulkUploadModal')?.classList.add('hidden');
+          selectedFile = null;
+          resultDiv.classList.add('hidden');
+        }, 3000);
       } else {
         resultDiv.className = 'mb-4 p-3 rounded-lg bg-red-900/30 text-red-300';
         resultDiv.innerHTML = `<p>Error: ${result.error}</p>`;

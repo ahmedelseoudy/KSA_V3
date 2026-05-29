@@ -1,6 +1,26 @@
 import type { APIRoute } from 'astro';
 import { createAuthenticatedClient } from '../../lib/supabase-server';
 
+export const GET: APIRoute = async ({ request, cookies }) => {
+  const supabase = await createAuthenticatedClient(cookies);
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return new Response('Unauthorized', { status: 401 });
+
+  const url = new URL(request.url);
+  const batchId = url.searchParams.get('batch_id');
+  if (!batchId) return new Response(JSON.stringify({ error: 'batch_id required' }), { status: 400 });
+
+  const { data, error } = await supabase
+    .from('order_items')
+    .select('*, company:companies(id, name)')
+    .eq('batch_id', batchId)
+    .order('match_status', { ascending: true })
+    .order('company_id', { ascending: true });
+
+  if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  return new Response(JSON.stringify({ data }), { headers: { 'Content-Type': 'application/json' } });
+};
+
 export const POST: APIRoute = async ({ request, cookies }) => {
   const supabase = await createAuthenticatedClient(cookies);
   const { data: { user } } = await supabase.auth.getUser();

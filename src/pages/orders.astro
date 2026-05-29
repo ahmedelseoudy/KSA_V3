@@ -51,9 +51,64 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
         </div>
         <div id="ordersUploadProgress" class="hidden mb-4 text-sm text-gray-400">Processing…</div>
         <div id="ordersUploadResult" class="hidden mb-4 text-sm"></div>
-        <div class="flex justify-end gap-3">
+        <div id="uploadActions" class="flex justify-end gap-3">
           <button type="button" id="closeUploadModal" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-500">Close</button>
           <button type="button" id="startOrdersUpload" disabled class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50">Upload</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Batch Detail Modal -->
+    <div id="batchDetailModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center">
+      <div class="bg-gray-800 rounded-xl p-6 w-full max-w-5xl mx-4 max-h-[90vh] flex flex-col">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-bold text-white" id="batchDetailTitle">Batch Items</h2>
+          <button id="closeBatchDetail" class="text-gray-400 hover:text-white text-2xl leading-none">&times;</button>
+        </div>
+        <!-- Stats row -->
+        <div class="grid grid-cols-4 gap-3 mb-4" id="batchDetailStats">
+          <div class="bg-gray-700 rounded-lg p-3">
+            <p class="text-xs text-gray-400">Total Items</p>
+            <p class="text-xl font-bold text-white" id="detailTotal">-</p>
+          </div>
+          <div class="bg-green-900/30 rounded-lg p-3">
+            <p class="text-xs text-gray-400">Matched</p>
+            <p class="text-xl font-bold text-green-400" id="detailMatched">-</p>
+          </div>
+          <div class="bg-red-900/30 rounded-lg p-3">
+            <p class="text-xs text-gray-400">Unmatched</p>
+            <p class="text-xl font-bold text-red-400" id="detailMissing">-</p>
+          </div>
+          <div class="bg-purple-900/30 rounded-lg p-3">
+            <p class="text-xs text-gray-400">Total Value</p>
+            <p class="text-xl font-bold text-purple-400" id="detailValue">-</p>
+          </div>
+        </div>
+        <!-- Tabs -->
+        <div class="flex gap-2 mb-4">
+          <button id="tabAll" onclick="window.switchTab('all')" class="px-3 py-1 text-sm rounded-full bg-purple-600 text-white">All</button>
+          <button id="tabMatched" onclick="window.switchTab('matched')" class="px-3 py-1 text-sm rounded-full bg-gray-700 text-gray-300 hover:bg-gray-600">Matched</button>
+          <button id="tabMissing" onclick="window.switchTab('missing')" class="px-3 py-1 text-sm rounded-full bg-gray-700 text-gray-300 hover:bg-gray-600">Unmatched</button>
+        </div>
+        <!-- Table -->
+        <div class="overflow-auto flex-1">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-700 sticky top-0">
+              <tr>
+                <th class="px-3 py-2 text-left text-gray-300">Barcode</th>
+                <th class="px-3 py-2 text-left text-gray-300">Title</th>
+                <th class="px-3 py-2 text-left text-gray-300">Company</th>
+                <th class="px-3 py-2 text-right text-gray-300">Order Qty</th>
+                <th class="px-3 py-2 text-right text-gray-300">Amazon Cost</th>
+                <th class="px-3 py-2 text-right text-gray-300">Provider Cost</th>
+                <th class="px-3 py-2 text-right text-gray-300">P&L</th>
+                <th class="px-3 py-2 text-center text-gray-300">Status</th>
+              </tr>
+            </thead>
+            <tbody id="batchDetailTableBody">
+              <tr><td colspan="8" class="px-4 py-6 text-center text-gray-400">Loading...</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -136,13 +191,13 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
             <span class="px-3 py-1 text-xs rounded-full ${statusColors[b.status] || 'bg-gray-700 text-gray-300'}">
               ${b.status.replace(/_/g, ' ')}
             </span>
-            <a href="/availability?batch_id=${b.id}" class="text-sm text-purple-400 hover:text-purple-300">View →</a>
+            <button onclick="window.viewBatchItems('${b.id}', '${b.name.replace(/'/g, "\\'")}}')" class="text-sm text-purple-400 hover:text-purple-300">View Items →</button>
           </div>
         </div>
         <div class="flex gap-3 mt-4 pt-3 border-t border-gray-700">
           ${b.status === 'draft' ? `
             <button onclick="window.openUpload('${b.id}')" class="text-sm text-purple-400 hover:text-purple-300">Upload Orders</button>
-            <button onclick="window.sendAvailability('${b.id}')" class="text-sm text-blue-400 hover:text-blue-300">Send Availability Requests</button>
+            <button onclick="window.sendAvailability('${b.id}')" class="text-sm text-blue-400 hover:text-blue-300" ${b.total_items === 0 ? 'disabled title="Upload orders first"' : ''}>Send Availability Requests</button>
           ` : ''}
           ${b.status === 'availability_sent' ? `
             <button onclick="window.generatePOs('${b.id}')" class="text-sm text-purple-400 hover:text-purple-300">Generate Purchase Orders</button>
@@ -331,15 +386,100 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
         return;
       }
       result.innerHTML = `
-        <div class="text-green-400">Saved ${json.saved} items – ${json.matched} matched, ${json.missing} missing.</div>
-        ${json.errors?.length ? `<div class="text-red-400 text-xs mt-1">${json.errors.length} insert errors</div>` : ''}
+        <div class="text-green-400 font-semibold">✓ Upload complete!</div>
+        <div class="text-gray-300 mt-1">${json.saved} items saved — <span class="text-green-400">${json.matched} matched</span>, <span class="text-red-400">${json.missing} unmatched</span>.</div>
+        ${json.errors?.length ? `<div class="text-red-400 text-xs mt-1">${json.errors.length} insert error(s)</div>` : ''}
+        <div class="text-gray-500 text-xs mt-2">Closing in 3 seconds…</div>
       `;
+      // Hide the upload button to prevent double-submit
+      (document.getElementById('startOrdersUpload') as HTMLButtonElement).disabled = true;
       loadBatches();
+      // Auto-close after 3 seconds
+      setTimeout(() => {
+        document.getElementById('uploadModal')?.classList.add('hidden');
+        result.classList.add('hidden');
+        progress.classList.add('hidden');
+      }, 3000);
     } catch (err: any) {
       progress.classList.add('hidden');
       result.classList.remove('hidden');
       result.innerHTML = `<span class="text-red-400">${err?.message || 'Failed to parse file'}</span>`;
     }
+  });
+
+  // ===== Batch Detail Modal =====
+  let allBatchItems: any[] = [];
+  let activeTab = 'all';
+
+  (window as any).viewBatchItems = async (batchId: string, batchName: string) => {
+    document.getElementById('batchDetailTitle')!.textContent = batchName || 'Batch Items';
+    document.getElementById('batchDetailModal')?.classList.remove('hidden');
+    const tbody = document.getElementById('batchDetailTableBody')!;
+    tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-6 text-center text-gray-400">Loading…</td></tr>';
+
+    const resp = await fetch(`/api/order-items?batch_id=${batchId}`);
+    if (!resp.ok) {
+      tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-6 text-center text-red-400">Failed to load items.</td></tr>';
+      return;
+    }
+    const { data } = await resp.json();
+    allBatchItems = data || [];
+    activeTab = 'all';
+    window.switchTab('all');
+  };
+
+  (window as any).switchTab = (tab: string) => {
+    activeTab = tab;
+    ['all', 'matched', 'missing'].forEach(t => {
+      const btn = document.getElementById(`tab${t.charAt(0).toUpperCase() + t.slice(1)}`)!;
+      btn.className = t === tab
+        ? 'px-3 py-1 text-sm rounded-full bg-purple-600 text-white'
+        : 'px-3 py-1 text-sm rounded-full bg-gray-700 text-gray-300 hover:bg-gray-600';
+    });
+    renderBatchItems();
+  };
+
+  function renderBatchItems() {
+    const items = activeTab === 'all' ? allBatchItems
+      : allBatchItems.filter(i => i.match_status === activeTab);
+
+    const matched = allBatchItems.filter(i => i.match_status === 'matched').length;
+    const missing = allBatchItems.filter(i => i.match_status === 'missing').length;
+    const totalValue = allBatchItems.reduce((s: number, i: any) => s + (Number(i.provider_cost) || 0), 0);
+
+    document.getElementById('detailTotal')!.textContent = String(allBatchItems.length);
+    document.getElementById('detailMatched')!.textContent = String(matched);
+    document.getElementById('detailMissing')!.textContent = String(missing);
+    document.getElementById('detailValue')!.textContent = `$${totalValue.toFixed(2)}`;
+
+    const tbody = document.getElementById('batchDetailTableBody')!;
+    if (items.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-6 text-center text-gray-400">No items in this view.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = items.map((item: any) => `
+      <tr class="border-b border-gray-700/50 hover:bg-gray-700/20">
+        <td class="px-3 py-2 text-white font-mono text-xs">${item.barcode}</td>
+        <td class="px-3 py-2 text-gray-300 truncate max-w-xs">${item.title || '-'}</td>
+        <td class="px-3 py-2 text-gray-400 text-xs">${item.company?.name || '-'}</td>
+        <td class="px-3 py-2 text-right text-white">${item.order_qty}</td>
+        <td class="px-3 py-2 text-right text-white">$${Number(item.amazon_cost).toFixed(2)}</td>
+        <td class="px-3 py-2 text-right text-white">$${Number(item.provider_cost).toFixed(2)}</td>
+        <td class="px-3 py-2 text-right ${
+          item.profit_loss > 0 ? 'text-green-400' : item.profit_loss < 0 ? 'text-red-400' : 'text-gray-400'
+        }">${Number(item.profit_loss).toFixed(2)} (${Number(item.profit_loss_pct).toFixed(1)}%)</td>
+        <td class="px-3 py-2 text-center">
+          <span class="px-2 py-0.5 text-xs rounded-full ${
+            item.match_status === 'matched' ? 'bg-green-900/30 text-green-300' : 'bg-red-900/30 text-red-400'
+          }">${item.match_status}</span>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  document.getElementById('closeBatchDetail')?.addEventListener('click', () => {
+    document.getElementById('batchDetailModal')?.classList.add('hidden');
   });
 
   // Init
