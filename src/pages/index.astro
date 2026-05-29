@@ -1,0 +1,15 @@
+---
+// Pure router: send users to the correct landing page based on auth + role.
+const user = Astro.locals.user;
+const profile = (user as any)?.profile;
+
+if (!user) {
+  return Astro.redirect('/login');
+}
+
+if (profile?.role === 'company') {
+  return Astro.redirect('/portal');
+}
+
+return Astro.redirect('/dashboard');
+---

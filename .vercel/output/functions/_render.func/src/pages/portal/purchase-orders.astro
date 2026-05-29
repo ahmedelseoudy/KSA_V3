@@ -1,0 +1,142 @@
+---
+import Layout from '../../layouts/Layout.astro';
+
+const user = Astro.locals.user;
+const profile = (user as any)?.profile;
+
+if (!profile || profile.role !== 'company') {
+  return Astro.redirect('/dashboard');
+}
+---
+
+<Layout title="Purchase Orders - Company Portal">
+  <div class="max-w-7xl mx-auto">
+    <h1 class="text-2xl font-bold text-white mb-6">Your Purchase Orders</h1>
+
+    <div id="poList" class="space-y-4">
+      <div class="text-center text-gray-400 py-8">Loading purchase orders...</div>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  async function loadPOs() {
+    const resp = await fetch('/api/purchase-orders');
+    if (!resp.ok) return;
+    const { data } = await resp.json();
+    renderPOs(data || []);
+  }
+
+  function renderPOs(pos: any[]) {
+    const container = document.getElementById('poList');
+    if (!container) return;
+
+    if (pos.length === 0) {
+      container.innerHTML = '<div class="text-center text-gray-400 py-8">No purchase orders yet.</div>';
+      return;
+    }
+
+    container.innerHTML = pos.map(po => `
+      <div class="bg-gray-800 rounded-lg border border-gray-700 p-5">
+        <div class="flex justify-between items-start mb-3">
+          <div>
+            <h3 class="text-lg font-semibold text-white">PO: ${po.po_number || 'N/A'}</h3>
+            <p class="text-sm text-gray-400">${po.total_items} items · $${Number(po.total_amount || 0).toFixed(2)}</p>
+            <p class="text-xs text-gray-500 mt-1">Created: ${new Date(po.created_at).toLocaleDateString()}</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="px-3 py-1 text-xs rounded-full ${
+              po.status === 'delivered' ? 'bg-green-900/30 text-green-300' :
+              po.status === 'confirmed' ? 'bg-purple-900/30 text-purple-300' :
+              po.status === 'partially_delivered' ? 'bg-yellow-900/30 text-yellow-300' :
+              'bg-blue-900/30 text-blue-300'
+            }">${po.status.replace(/_/g, ' ')}</span>
+            ${po.status === 'sent' ? `
+              <button onclick="window.confirmPO('${po.id}')" class="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700">
+                Confirm
+              </button>
+            ` : ''}
+          </div>
+        </div>
+        <button onclick="window.toggleItems('${po.id}')" class="text-sm text-purple-400 hover:text-purple-300 mt-2">View Items ▼</button>
+        <div id="items-${po.id}" class="hidden mt-4"></div>
+      </div>
+    `).join('');
+  }
+
+  (window as any).confirmPO = async (id: string) => {
+    if (!confirm('Confirm this purchase order?')) return;
+    const resp = await fetch('/api/purchase-orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'confirm', id }),
+    });
+    if (resp.ok) {
+      alert('Purchase order confirmed.');
+      loadPOs();
+    } else alert('Failed to confirm.');
+  };
+
+  (window as any).toggleItems = async (poId: string) => {
+    const container = document.getElementById(`items-${poId}`);
+    if (!container) return;
+
+    if (!container.classList.contains('hidden') && container.innerHTML) {
+      container.classList.add('hidden');
+      return;
+    }
+    container.classList.remove('hidden');
+    container.innerHTML = '<p class="text-gray-400">Loading...</p>';
+
+    const resp = await fetch(`/api/purchase-orders?id=${poId}&items=true`);
+    if (!resp.ok) return;
+    const { data } = await resp.json();
+
+    container.innerHTML = `
+      <table class="w-full text-sm">
+        <thead class="bg-gray-700/50">
+          <tr>
+            <th class="px-3 py-2 text-left text-gray-300">Product</th>
+            <th class="px-3 py-2 text-right text-gray-300">Qty</th>
+            <th class="px-3 py-2 text-right text-gray-300">Boxes</th>
+            <th class="px-3 py-2 text-right text-gray-300">Price/Box</th>
+            <th class="px-3 py-2 text-right text-gray-300">Total</th>
+            <th class="px-3 py-2 text-center text-gray-300">Delivery</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${(data || []).map((item: any) => `
+            <tr class="border-b border-gray-700/50">
+              <td class="px-3 py-2 text-white">${item.product?.title || item.product?.barcode || '-'}</td>
+              <td class="px-3 py-2 text-right text-white">${item.quantity}</td>
+              <td class="px-3 py-2 text-right text-white">${Number(item.boxes).toFixed(1)}</td>
+              <td class="px-3 py-2 text-right text-white">$${Number(item.price_per_box).toFixed(2)}</td>
+              <td class="px-3 py-2 text-right text-white">$${Number(item.total_price).toFixed(2)}</td>
+              <td class="px-3 py-2 text-center">
+                <span class="px-2 py-0.5 text-xs rounded-full ${
+                  item.delivery_status === 'delivered' ? 'bg-green-900/30 text-green-300' :
+                  item.delivery_status === 'partial' ? 'bg-yellow-900/30 text-yellow-300' :
+                  'bg-gray-700 text-gray-400'
+                }">${item.delivered_qty}/${item.quantity}</span>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  };
+
+  async function init() {
+    await loadPOs();
+    const params = new URLSearchParams(window.location.search);
+    const focusId = params.get('focus');
+    if (focusId) {
+      setTimeout(() => {
+        (window as any).toggleItems(focusId);
+        const card = document.querySelector(`#items-${focusId}`)?.closest('.bg-gray-800');
+        card?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    }
+  }
+  init();
+</script>

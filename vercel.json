@@ -1,0 +1,9 @@
+{
+  "buildCommand": "npm run build",
+  "env": {
+    "PUBLIC_APP_NAME": "KSA V2",
+    "PUBLIC_ENV": "production",
+    "PUBLIC_SUPABASE_URL": "https://yeiqsgnqjlqmkvgdblqz.supabase.co",
+    "PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InllaXFzZ25xamxxbWt2Z2RibHF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgwOTM1MjQsImV4cCI6MjA3MzY2OTUyNH0.HjFZLR7dS7VTf95J577FJtclCByVnzc-ymx95-IBeqo"
+  }
+}

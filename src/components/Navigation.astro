@@ -1,0 +1,315 @@
+---
+import { NAV_ITEMS } from '../utils/navigation/constants';
+
+// Get current user from middleware context
+const user = Astro.locals.user;
+const userRole = (user as any)?.profile?.role || 'user';
+
+// Filter navigation items based on user role
+const allowedNavItems = NAV_ITEMS.filter(item =>
+  item.roles.includes(userRole)
+);
+---
+
+<div class="navigation-wrapper">
+  <nav id="mainNav" class="nav-menu bg-gray-800 shadow-lg">
+    <div class="nav-content">
+
+    <ul class="py-2">
+      {allowedNavItems.map(item => (
+        <li>
+          <a
+            href={item.path}
+            class={`flex items-center px-4 py-2 text-sm relative group ${
+              Astro.url.pathname === item.path
+                ? 'bg-purple-600 text-white'
+                : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+            }`}
+          >
+            <span class="mr-3">{item.icon}</span>
+            {item.label}
+            {item.path === '/po' && (
+              <span class="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 bg-gray-700 text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap">
+                Press Ctrl+M to toggle menu
+              </span>
+            )}
+          </a>
+        </li>
+      )).filter(item => item.path !== '/database')}
+    </ul>
+
+    <!-- Logout button at bottom -->
+    <div class="absolute bottom-4 left-4 right-4">
+      <button
+        id="nav-logout-btn"
+        class="w-full flex items-center px-4 py-2 text-sm text-gray-300 hover:bg-red-600 hover:text-white transition-colors rounded"
+      >
+        <span class="mr-3">🚪</span>
+        Sign Out
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- Mobile toggle button (always visible on mobile) -->
+<button class="mobile-toggle-btn md:hidden fixed top-4 right-4 z-50 p-2 rounded-full bg-gray-700 text-white hover:bg-gray-600">
+  <svg xmlns="http://www.w3.org/2000/svg" class="toggle-icon h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+  </svg>
+</button>
+
+<!-- Desktop toggle button (outside the collapsible area) -->
+<button 
+  id="desktopMenuToggle" 
+  class="desktop-toggle-btn hidden md:flex fixed left-4 top-4 z-[100] p-2 rounded-full bg-gray-700 text-white hover:bg-gray-600 transition-all shadow-lg border border-gray-600"
+  aria-label="Toggle Menu"
+  title="Toggle Menu"
+>
+  <svg xmlns="http://www.w3.org/2000/svg" class="toggle-icon h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+  </svg>
+</button>
+</div>
+
+<style>
+  /* Navigation wrapper */
+  .navigation-wrapper {
+    position: relative;
+  }
+  
+  /* Base navigation styles */
+  .nav-menu {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 16rem; /* 256px */
+    height: 100vh;
+    transition: width 0.3s ease, transform 0.3s ease;
+    z-index: 50;
+  }
+
+  .nav-content {
+    width: 16rem;
+    transition: opacity 0.3s ease, width 0.3s ease;
+    overflow-y: auto;
+    height: 100vh;
+  }
+
+  /* Collapsed state */
+  .nav-menu.collapsed {
+    width: 0;
+  }
+
+  .nav-menu.collapsed .nav-content {
+    opacity: 0;
+    width: 0;
+    overflow: hidden;
+  }
+
+  /* Toggle button styling */
+  .mobile-toggle-btn, .desktop-toggle-btn {
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    background: #374151; /* gray-700 */
+    transition: all 0.3s ease;
+    z-index: 100;
+  }
+
+  .mobile-toggle-btn:hover, .desktop-toggle-btn:hover {
+    background: #4b5563; /* gray-600 */
+    transform: scale(1.1);
+  }
+
+  /* Desktop toggle button positioning */
+  .desktop-toggle-btn {
+    transition: left 0.3s ease, transform 0.3s ease;
+  }
+  
+  /* When menu is collapsed, move toggle button */
+  .nav-menu.collapsed ~ .desktop-toggle-btn {
+    left: 0.75rem;
+  }
+  
+  /* Icon animation */
+  .toggle-icon {
+    transform: rotate(0deg);
+    transition: transform 0.3s;
+  }
+
+  .nav-menu.collapsed ~ .desktop-toggle-btn .toggle-icon {
+    transform: rotate(180deg);
+  }
+
+  /* Responsive behavior */
+  @media (max-width: 767px) {
+    .nav-menu {
+      transform: translateX(-100%);
+      width: 85%; /* Less than 100% to show a bit of the background */
+      max-width: 16rem;
+    }
+    
+    .nav-menu.open {
+      transform: translateX(0);
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+    }
+  }
+  
+  /* Ensure tooltips don't interfere with clicks */
+  .group:hover > span {
+    pointer-events: none;
+  }
+  
+  /* Improve tooltip positioning */
+  .absolute.left-full {
+    transform: translateY(-50%) translateX(0.5rem);
+  }
+</style>
+
+<script>
+  const nav = document.getElementById('mainNav');
+  const mainContent = document.getElementById('mainContent');
+  const mobileToggleBtn = document.querySelector('.mobile-toggle-btn');
+  const desktopToggleBtn = document.getElementById('desktopMenuToggle');
+
+  // Toggle menu function
+  function toggleMenu() {
+    const isMobile = window.innerWidth <= 767;
+    
+    nav.classList.toggle('collapsed');
+    
+    // For mobile screens
+    if (isMobile) {
+      nav.classList.toggle('open');
+    }
+    
+    // For desktop screens
+    if (!isMobile) {
+      mainContent.classList.toggle('collapsed');
+    }
+    
+    // Save state to localStorage
+    saveState();
+  }
+
+  // Add event listeners to toggle buttons
+  if (mobileToggleBtn) {
+    mobileToggleBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      toggleMenu();
+    });
+  }
+  
+  if (desktopToggleBtn) {
+    desktopToggleBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      toggleMenu();
+    });
+  }
+
+  // Keyboard shortcut
+  document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.key.toLowerCase() === 'm') {
+      e.preventDefault();
+      toggleMenu();
+    }
+  });
+
+  // Create an overlay for mobile
+  const overlay = document.createElement('div');
+  overlay.classList.add('menu-overlay');
+  document.body.appendChild(overlay);
+  
+  // When clicking overlay, close menu
+  overlay.addEventListener('click', () => {
+    nav.classList.remove('open');
+    overlay.classList.remove('active');
+  });
+  
+  // Handle mobile toggle specially
+  if (mobileToggleBtn) {
+    mobileToggleBtn.addEventListener('click', () => {
+      overlay.classList.toggle('active');
+    });
+  }
+
+  // Handle responsive state
+  const mediaQuery = window.matchMedia('(max-width: 767px)');
+  function handleMediaChange(e) {
+    if (e.matches) {
+      // Mobile view
+      nav.classList.remove('collapsed');
+      nav.classList.remove('open');
+      mainContent.classList.remove('collapsed');
+      overlay.classList.remove('active');
+    } else {
+      // Desktop view: apply saved state
+      if (localStorage.getItem('menuCollapsed') === 'true') {
+        nav.classList.add('collapsed');
+        mainContent.classList.add('collapsed');
+      } else {
+        nav.classList.remove('collapsed');
+        mainContent.classList.remove('collapsed');
+      }
+    }
+  }
+
+  // Listen for changes to media query
+  mediaQuery.addEventListener('change', handleMediaChange);
+  
+  // Initial setup
+  handleMediaChange(mediaQuery);
+  
+  // Save state to localStorage
+  function saveState() {
+    if (nav) {
+      localStorage.setItem('menuCollapsed', nav.classList.contains('collapsed').toString());
+    }
+  }
+
+  const navLogoutBtn = document.getElementById('nav-logout-btn');
+
+  // Logout functionality
+  if (navLogoutBtn) {
+    navLogoutBtn.addEventListener('click', async () => {
+      try {
+        // Clear cookies by making a request to logout endpoint or clearing manually
+        document.cookie = 'sb-access-token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+        document.cookie = 'sb-refresh-token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+        document.cookie = 'sb-yeiqsgnqjlqmkvgdblqz-auth-token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+        window.location.href = '/login';
+      } catch (error) {
+        console.error('Error signing out:', error);
+        window.location.href = '/login';
+      }
+    });
+  }
+</script>
+
+<style>
+  /* Menu overlay for mobile */
+  .menu-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 40;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  
+  .menu-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  
+  @media (min-width: 768px) {
+    .menu-overlay {
+      display: none;
+    }
+  }
+</style>

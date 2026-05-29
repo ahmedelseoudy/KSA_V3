@@ -1,0 +1,225 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const user = Astro.locals.user;
+const profile = (user as any)?.profile;
+
+if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
+  return Astro.redirect('/dashboard');
+}
+---
+
+<Layout title="Analytics - KSA CRM">
+  <div class="max-w-7xl mx-auto">
+    <h1 class="text-2xl font-bold text-white mb-6">Business Analytics</h1>
+
+    <!-- KPI Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+      <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+        <p class="text-gray-400 text-xs uppercase">Total Revenue</p>
+        <p class="text-xl font-bold text-white mt-1" id="totalRevenue">-</p>
+      </div>
+      <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+        <p class="text-gray-400 text-xs uppercase">Total Orders</p>
+        <p class="text-xl font-bold text-white mt-1" id="totalOrders">-</p>
+      </div>
+      <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+        <p class="text-gray-400 text-xs uppercase">Active Companies</p>
+        <p class="text-xl font-bold text-white mt-1" id="activeCompanies">-</p>
+      </div>
+      <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+        <p class="text-gray-400 text-xs uppercase">Avg Availability Rate</p>
+        <p class="text-xl font-bold text-green-400 mt-1" id="avgAvailRate">-</p>
+      </div>
+      <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+        <p class="text-gray-400 text-xs uppercase">Delivery Rate</p>
+        <p class="text-xl font-bold text-blue-400 mt-1" id="deliveryRate">-</p>
+      </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <div class="bg-gray-800 rounded-lg p-5 border border-gray-700">
+        <h3 class="text-white font-semibold mb-4">Orders by Company</h3>
+        <canvas id="companyChart" height="250"></canvas>
+      </div>
+      <div class="bg-gray-800 rounded-lg p-5 border border-gray-700">
+        <h3 class="text-white font-semibold mb-4">Profit/Loss by Batch</h3>
+        <canvas id="profitChart" height="250"></canvas>
+      </div>
+    </div>
+
+    <!-- Company Performance Table -->
+    <div class="bg-gray-800 rounded-lg border border-gray-700">
+      <div class="p-4 border-b border-gray-700">
+        <h2 class="text-lg font-semibold text-white">Company Performance</h2>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-700/50">
+            <tr>
+              <th class="px-4 py-3 text-left text-gray-300">Company</th>
+              <th class="px-4 py-3 text-right text-gray-300">Products</th>
+              <th class="px-4 py-3 text-right text-gray-300">Total PO Value</th>
+              <th class="px-4 py-3 text-right text-gray-300">Availability Rate</th>
+              <th class="px-4 py-3 text-right text-gray-300">Delivery Rate</th>
+              <th class="px-4 py-3 text-center text-gray-300">Status</th>
+            </tr>
+          </thead>
+          <tbody id="performanceTable">
+            <tr><td colspan="6" class="px-4 py-6 text-center text-gray-400">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  import { Chart, registerables } from 'chart.js';
+  Chart.register(...registerables);
+
+  async function loadAnalytics() {
+    // Load companies
+    const compResp = await fetch('/api/companies');
+    const compData = compResp.ok ? await compResp.json() : { data: [] };
+    const companies = compData.data || [];
+
+    document.getElementById('activeCompanies')!.textContent = String(companies.filter((c: any) => c.status === 'active').length);
+
+    // Load order batches
+    const ordersResp = await fetch('/api/orders');
+    const ordersData = ordersResp.ok ? await ordersResp.json() : { data: [] };
+    const batches = ordersData.data || [];
+
+    document.getElementById('totalOrders')!.textContent = String(batches.length);
+    const totalValue = batches.reduce((sum: number, b: any) => sum + Number(b.total_value || 0), 0);
+    document.getElementById('totalRevenue')!.textContent = `$${totalValue.toFixed(0)}`;
+
+    // Load availability data
+    const availResp = await fetch('/api/availability');
+    const availData = availResp.ok ? await availResp.json() : { data: [] };
+    const availOrders = availData.data || [];
+
+    const totalAvailItems = availOrders.reduce((sum: number, ao: any) => sum + (ao.total_items || 0), 0);
+    const totalAvailable = availOrders.reduce((sum: number, ao: any) => sum + (ao.available_count || 0), 0);
+    const avgRate = totalAvailItems > 0 ? ((totalAvailable / totalAvailItems) * 100).toFixed(0) : '0';
+    document.getElementById('avgAvailRate')!.textContent = `${avgRate}%`;
+
+    // Load POs for delivery rate
+    const poResp = await fetch('/api/purchase-orders');
+    const poData = poResp.ok ? await poResp.json() : { data: [] };
+    const pos = poData.data || [];
+
+    const totalPOs = pos.length;
+    const deliveredPOs = pos.filter((po: any) => po.status === 'delivered').length;
+    const delRate = totalPOs > 0 ? ((deliveredPOs / totalPOs) * 100).toFixed(0) : '0';
+    document.getElementById('deliveryRate')!.textContent = `${delRate}%`;
+
+    // Company chart
+    renderCompanyChart(companies, availOrders, pos);
+    renderProfitChart(batches);
+    renderPerformanceTable(companies, availOrders, pos);
+  }
+
+  function renderCompanyChart(companies: any[], availOrders: any[], pos: any[]) {
+    const canvas = document.getElementById('companyChart') as HTMLCanvasElement;
+    if (!canvas) return;
+
+    const companyPOs = new Map<string, number>();
+    for (const po of pos) {
+      const name = po.company?.name || 'Unknown';
+      companyPOs.set(name, (companyPOs.get(name) || 0) + Number(po.total_amount || 0));
+    }
+
+    const labels = Array.from(companyPOs.keys()).slice(0, 10);
+    const values = labels.map(l => companyPOs.get(l) || 0);
+
+    new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'PO Value ($)',
+          data: values,
+          backgroundColor: 'rgba(147, 51, 234, 0.5)',
+          borderColor: 'rgb(147, 51, 234)',
+          borderWidth: 1,
+        }],
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { labels: { color: '#9ca3af' } } },
+        scales: {
+          x: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } },
+          y: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } },
+        },
+      },
+    });
+  }
+
+  function renderProfitChart(batches: any[]) {
+    const canvas = document.getElementById('profitChart') as HTMLCanvasElement;
+    if (!canvas) return;
+
+    const labels = batches.slice(0, 10).map((b: any) => b.name || 'Unnamed');
+    const values = batches.slice(0, 10).map((b: any) => Number(b.total_value || 0));
+
+    new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Batch Value ($)',
+          data: values,
+          borderColor: 'rgb(59, 130, 246)',
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          fill: true,
+          tension: 0.3,
+        }],
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { labels: { color: '#9ca3af' } } },
+        scales: {
+          x: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } },
+          y: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } },
+        },
+      },
+    });
+  }
+
+  function renderPerformanceTable(companies: any[], availOrders: any[], pos: any[]) {
+    const tbody = document.getElementById('performanceTable');
+    if (!tbody) return;
+
+    const rows = companies.map((c: any) => {
+      const companyAvail = availOrders.filter((ao: any) => ao.company_id === c.id);
+      const totalItems = companyAvail.reduce((s: number, ao: any) => s + (ao.total_items || 0), 0);
+      const availItems = companyAvail.reduce((s: number, ao: any) => s + (ao.available_count || 0), 0);
+      const availRate = totalItems > 0 ? ((availItems / totalItems) * 100).toFixed(0) : '-';
+
+      const companyPOs = pos.filter((po: any) => po.company_id === c.id);
+      const poValue = companyPOs.reduce((s: number, po: any) => s + Number(po.total_amount || 0), 0);
+      const deliveredCount = companyPOs.filter((po: any) => po.status === 'delivered').length;
+      const deliveryRate = companyPOs.length > 0 ? ((deliveredCount / companyPOs.length) * 100).toFixed(0) : '-';
+
+      return `
+        <tr class="border-b border-gray-700/50">
+          <td class="px-4 py-3 text-white">${c.name}</td>
+          <td class="px-4 py-3 text-right text-white">-</td>
+          <td class="px-4 py-3 text-right text-white">$${poValue.toFixed(0)}</td>
+          <td class="px-4 py-3 text-right ${Number(availRate) >= 70 ? 'text-green-400' : Number(availRate) >= 40 ? 'text-yellow-400' : 'text-red-400'}">${availRate}%</td>
+          <td class="px-4 py-3 text-right text-white">${deliveryRate}%</td>
+          <td class="px-4 py-3 text-center">
+            <span class="px-2 py-0.5 text-xs rounded-full ${c.status === 'active' ? 'bg-green-900/30 text-green-300' : 'bg-gray-700 text-gray-400'}">${c.status}</span>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    tbody.innerHTML = rows || '<tr><td colspan="6" class="px-4 py-6 text-center text-gray-400">No data</td></tr>';
+  }
+
+  loadAnalytics();
+</script>

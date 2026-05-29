@@ -1,0 +1,398 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const user = Astro.locals.user;
+const profile = (user as any)?.profile;
+
+if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
+  return Astro.redirect('/dashboard');
+}
+---
+
+<Layout title="Products Database - KSA CRM">
+  <div class="max-w-7xl mx-auto">
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-2xl font-bold text-white">Products Database</h1>
+      <div class="flex gap-3">
+        <button id="addProductBtn" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+          + Add Product
+        </button>
+        <button id="bulkUploadBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+          📤 Bulk Upload
+        </button>
+      </div>
+    </div>
+
+    <!-- Search & Filters -->
+    <div class="bg-gray-800 rounded-lg p-4 mb-6">
+      <div class="flex gap-4 items-end">
+        <div class="flex-1">
+          <label class="block text-sm text-gray-400 mb-1">Search</label>
+          <input type="text" id="searchInput" placeholder="Search by barcode, title, or ASIN..."
+            class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-purple-500 focus:outline-none" />
+        </div>
+        <div>
+          <label class="block text-sm text-gray-400 mb-1">Company</label>
+          <select id="companyFilter" class="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none">
+            <option value="">All Companies</option>
+          </select>
+        </div>
+        <button id="searchBtn" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-500 transition-colors">
+          Search
+        </button>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6" id="statsContainer">
+      <div class="bg-gray-800 rounded-lg p-4">
+        <p class="text-gray-400 text-sm">Total Products</p>
+        <p class="text-2xl font-bold text-white" id="totalProducts">-</p>
+      </div>
+      <div class="bg-gray-800 rounded-lg p-4">
+        <p class="text-gray-400 text-sm">Companies</p>
+        <p class="text-2xl font-bold text-white" id="totalCompanies">-</p>
+      </div>
+      <div class="bg-gray-800 rounded-lg p-4">
+        <p class="text-gray-400 text-sm">Avg Price/Box</p>
+        <p class="text-2xl font-bold text-white" id="avgPrice">-</p>
+      </div>
+      <div class="bg-gray-800 rounded-lg p-4">
+        <p class="text-gray-400 text-sm">Last Upload</p>
+        <p class="text-2xl font-bold text-white" id="lastUpload">-</p>
+      </div>
+    </div>
+
+    <!-- Products Table -->
+    <div class="bg-gray-800 rounded-lg overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-700">
+            <tr>
+              <th class="px-4 py-3 text-left text-gray-300">Barcode</th>
+              <th class="px-4 py-3 text-left text-gray-300">ASIN</th>
+              <th class="px-4 py-3 text-left text-gray-300">Title</th>
+              <th class="px-4 py-3 text-left text-gray-300">Company</th>
+              <th class="px-4 py-3 text-right text-gray-300">Box Qty</th>
+              <th class="px-4 py-3 text-right text-gray-300">Price/Box</th>
+              <th class="px-4 py-3 text-center text-gray-300">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="productsTableBody">
+            <tr>
+              <td colspan="7" class="px-4 py-8 text-center text-gray-400">Loading products...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <!-- Pagination -->
+      <div class="flex justify-between items-center px-4 py-3 bg-gray-700/50">
+        <p class="text-sm text-gray-400" id="paginationInfo">Showing 0 of 0</p>
+        <div class="flex gap-2">
+          <button id="prevPage" class="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-500 disabled:opacity-50" disabled>Previous</button>
+          <button id="nextPage" class="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-500 disabled:opacity-50" disabled>Next</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bulk Upload Modal -->
+    <div id="bulkUploadModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center">
+      <div class="bg-gray-800 rounded-xl p-6 w-full max-w-lg mx-4">
+        <h2 class="text-xl font-bold text-white mb-4">Bulk Upload Products</h2>
+        <p class="text-gray-400 text-sm mb-4">
+          Upload an Excel/CSV file with columns: <strong>barcode, company, boxes (box_quantity), price (price_per_box)</strong>. 
+          Optional: asin, title, category.
+        </p>
+        <div class="border-2 border-dashed border-gray-600 rounded-lg p-8 text-center mb-4" id="dropZone">
+          <input type="file" id="bulkFileInput" accept=".xlsx,.xls,.csv" class="hidden" />
+          <p class="text-gray-400">Drop file here or <button class="text-purple-400 hover:text-purple-300" onclick="document.getElementById('bulkFileInput').click()">browse</button></p>
+          <p class="text-gray-500 text-xs mt-2">Supports .xlsx, .xls, .csv</p>
+        </div>
+        <div id="uploadProgress" class="hidden mb-4">
+          <div class="flex justify-between text-sm text-gray-400 mb-1">
+            <span id="uploadStatus">Processing...</span>
+            <span id="uploadCount">0/0</span>
+          </div>
+          <div class="w-full bg-gray-700 rounded-full h-2">
+            <div id="uploadBar" class="bg-purple-600 h-2 rounded-full transition-all" style="width: 0%"></div>
+          </div>
+        </div>
+        <div id="uploadResult" class="hidden mb-4 p-3 rounded-lg"></div>
+        <div class="flex justify-end gap-3">
+          <button id="closeUploadModal" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-500">Cancel</button>
+          <button id="startUpload" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50" disabled>Upload</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add Product Modal -->
+    <div id="addProductModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center">
+      <div class="bg-gray-800 rounded-xl p-6 w-full max-w-lg mx-4">
+        <h2 class="text-xl font-bold text-white mb-4">Add Product</h2>
+        <form id="addProductForm" class="space-y-4">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm text-gray-400 mb-1">Barcode *</label>
+              <input type="text" name="barcode" required class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none" />
+            </div>
+            <div>
+              <label class="block text-sm text-gray-400 mb-1">ASIN</label>
+              <input type="text" name="asin" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm text-gray-400 mb-1">Title</label>
+            <input type="text" name="title" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-sm text-gray-400 mb-1">Company</label>
+            <select name="company_id" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none">
+              <option value="">Select company...</option>
+            </select>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm text-gray-400 mb-1">Box Quantity *</label>
+              <input type="number" name="box_quantity" required min="1" value="1" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none" />
+            </div>
+            <div>
+              <label class="block text-sm text-gray-400 mb-1">Price per Box *</label>
+              <input type="number" name="price_per_box" required min="0" step="0.01" value="0" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm text-gray-400 mb-1">Category</label>
+            <input type="text" name="category" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none" />
+          </div>
+          <div class="flex justify-end gap-3 pt-2">
+            <button type="button" id="closeAddModal" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-500">Cancel</button>
+            <button type="submit" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">Add Product</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  import * as XLSX from 'xlsx';
+
+  let currentPage = 0;
+  const pageSize = 50;
+  let totalProducts = 0;
+  let selectedFile: File | null = null;
+
+  // Load companies for filter and form
+  async function loadCompanies() {
+    const resp = await fetch('/api/companies');
+    if (!resp.ok) return;
+    const { data } = await resp.json();
+    
+    const filterSelect = document.getElementById('companyFilter') as HTMLSelectElement;
+    const formSelect = document.querySelector('#addProductForm select[name="company_id"]') as HTMLSelectElement;
+    
+    const options = (data || []).map((c: any) => `<option value="${c.id}">${c.name}</option>`).join('');
+    if (filterSelect) filterSelect.innerHTML = `<option value="">All Companies</option>${options}`;
+    if (formSelect) formSelect.innerHTML = `<option value="">Select company...</option>${options}`;
+  }
+
+  // Load products
+  async function loadProducts() {
+    const search = (document.getElementById('searchInput') as HTMLInputElement)?.value || '';
+    const companyId = (document.getElementById('companyFilter') as HTMLSelectElement)?.value || '';
+    
+    const params = new URLSearchParams({
+      limit: String(pageSize),
+      offset: String(currentPage * pageSize),
+    });
+    if (search) params.set('search', search);
+    if (companyId) params.set('company_id', companyId);
+
+    const resp = await fetch(`/api/products?${params}`);
+    if (!resp.ok) return;
+    const { data, count } = await resp.json();
+    
+    totalProducts = count || 0;
+    renderProducts(data || []);
+    updatePagination();
+  }
+
+  function renderProducts(products: any[]) {
+    const tbody = document.getElementById('productsTableBody');
+    if (!tbody) return;
+
+    if (products.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">No products found</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = products.map(p => `
+      <tr class="border-b border-gray-700 hover:bg-gray-700/30">
+        <td class="px-4 py-3 text-white font-mono text-xs">${p.barcode}</td>
+        <td class="px-4 py-3 text-gray-300 text-xs">${p.asin || '-'}</td>
+        <td class="px-4 py-3 text-white truncate max-w-xs">${p.title || '-'}</td>
+        <td class="px-4 py-3 text-gray-300">${p.company?.name || '-'}</td>
+        <td class="px-4 py-3 text-right text-white">${p.box_quantity}</td>
+        <td class="px-4 py-3 text-right text-white">$${Number(p.price_per_box).toFixed(2)}</td>
+        <td class="px-4 py-3 text-center">
+          <button onclick="window.deleteProduct('${p.id}')" class="text-red-400 hover:text-red-300 text-xs">Delete</button>
+        </td>
+      </tr>
+    `).join('');
+
+    // Update stats
+    const el = document.getElementById('totalProducts');
+    if (el) el.textContent = String(totalProducts);
+  }
+
+  function updatePagination() {
+    const info = document.getElementById('paginationInfo');
+    const prevBtn = document.getElementById('prevPage') as HTMLButtonElement;
+    const nextBtn = document.getElementById('nextPage') as HTMLButtonElement;
+    
+    const start = currentPage * pageSize + 1;
+    const end = Math.min((currentPage + 1) * pageSize, totalProducts);
+    
+    if (info) info.textContent = `Showing ${totalProducts > 0 ? start : 0}-${end} of ${totalProducts}`;
+    if (prevBtn) prevBtn.disabled = currentPage === 0;
+    if (nextBtn) nextBtn.disabled = end >= totalProducts;
+  }
+
+  // Event listeners
+  document.getElementById('searchBtn')?.addEventListener('click', () => { currentPage = 0; loadProducts(); });
+  document.getElementById('searchInput')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') { currentPage = 0; loadProducts(); } });
+  document.getElementById('companyFilter')?.addEventListener('change', () => { currentPage = 0; loadProducts(); });
+  document.getElementById('prevPage')?.addEventListener('click', () => { currentPage--; loadProducts(); });
+  document.getElementById('nextPage')?.addEventListener('click', () => { currentPage++; loadProducts(); });
+
+  // Bulk upload modal
+  document.getElementById('bulkUploadBtn')?.addEventListener('click', () => {
+    document.getElementById('bulkUploadModal')?.classList.remove('hidden');
+  });
+  document.getElementById('closeUploadModal')?.addEventListener('click', () => {
+    document.getElementById('bulkUploadModal')?.classList.add('hidden');
+    selectedFile = null;
+  });
+
+  // File input
+  document.getElementById('bulkFileInput')?.addEventListener('change', (e) => {
+    const input = e.target as HTMLInputElement;
+    if (input.files?.[0]) {
+      selectedFile = input.files[0];
+      (document.getElementById('startUpload') as HTMLButtonElement).disabled = false;
+      document.getElementById('dropZone')!.innerHTML = `<p class="text-green-400">Selected: ${selectedFile.name}</p>`;
+    }
+  });
+
+  // Start upload
+  document.getElementById('startUpload')?.addEventListener('click', async () => {
+    if (!selectedFile) return;
+    
+    const progressDiv = document.getElementById('uploadProgress')!;
+    const resultDiv = document.getElementById('uploadResult')!;
+    progressDiv.classList.remove('hidden');
+    resultDiv.classList.add('hidden');
+
+    try {
+      // Parse file
+      const buffer = await selectedFile.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: 'array' });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows: any[] = XLSX.utils.sheet_to_json(sheet);
+
+      document.getElementById('uploadCount')!.textContent = `0/${rows.length}`;
+      document.getElementById('uploadBar')!.style.width = '10%';
+      document.getElementById('uploadStatus')!.textContent = 'Parsing file...';
+
+      // Map columns
+      const products = rows.map(row => {
+        const barcode = String(row['barcode'] || row['Barcode'] || row['EAN'] || row['ean'] || row['product_code'] || '').trim();
+        const company = String(row['company'] || row['Company'] || row['supplier'] || row['Supplier'] || row['manufacturer'] || '').trim();
+        const boxQty = parseInt(row['boxes'] || row['Boxes'] || row['box_quantity'] || row['units'] || row['pack_size'] || '1');
+        const price = parseFloat(row['price'] || row['Price'] || row['price_per_box'] || row['cost'] || row['unit_price'] || '0');
+        const asin = String(row['asin'] || row['ASIN'] || '').trim();
+        const title = String(row['title'] || row['Title'] || row['name'] || row['Name'] || row['description'] || '').trim();
+        const category = String(row['category'] || row['Category'] || '').trim();
+
+        return { barcode, company, box_quantity: boxQty, price_per_box: price, asin, title, category };
+      }).filter(p => p.barcode);
+
+      document.getElementById('uploadBar')!.style.width = '30%';
+      document.getElementById('uploadStatus')!.textContent = `Uploading ${products.length} products...`;
+
+      // Send to API
+      const resp = await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bulk: true, products }),
+      });
+
+      const result = await resp.json();
+      document.getElementById('uploadBar')!.style.width = '100%';
+
+      if (resp.ok) {
+        resultDiv.className = 'mb-4 p-3 rounded-lg bg-green-900/30 text-green-300';
+        resultDiv.innerHTML = `<p>Successfully processed ${result.created} products.</p>${result.errors?.length ? `<p class="text-yellow-300 mt-1">Errors: ${result.errors.join(', ')}</p>` : ''}`;
+      } else {
+        resultDiv.className = 'mb-4 p-3 rounded-lg bg-red-900/30 text-red-300';
+        resultDiv.innerHTML = `<p>Error: ${result.error}</p>`;
+      }
+      resultDiv.classList.remove('hidden');
+      loadProducts();
+      loadCompanies();
+    } catch (err: any) {
+      document.getElementById('uploadBar')!.style.width = '0%';
+      resultDiv.className = 'mb-4 p-3 rounded-lg bg-red-900/30 text-red-300';
+      resultDiv.innerHTML = `<p>Error: ${err.message}</p>`;
+      resultDiv.classList.remove('hidden');
+    }
+  });
+
+  // Add product modal
+  document.getElementById('addProductBtn')?.addEventListener('click', () => {
+    document.getElementById('addProductModal')?.classList.remove('hidden');
+  });
+  document.getElementById('closeAddModal')?.addEventListener('click', () => {
+    document.getElementById('addProductModal')?.classList.add('hidden');
+  });
+
+  document.getElementById('addProductForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target as HTMLFormElement;
+    const formData = new FormData(form);
+
+    const resp = await fetch('/api/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        barcode: formData.get('barcode'),
+        asin: formData.get('asin') || null,
+        title: formData.get('title') || null,
+        company_id: formData.get('company_id') || null,
+        box_quantity: parseInt(formData.get('box_quantity') as string) || 1,
+        price_per_box: parseFloat(formData.get('price_per_box') as string) || 0,
+        category: formData.get('category') || null,
+      }),
+    });
+
+    if (resp.ok) {
+      document.getElementById('addProductModal')?.classList.add('hidden');
+      form.reset();
+      loadProducts();
+    } else {
+      const err = await resp.json();
+      alert(err.error || 'Failed to add product');
+    }
+  });
+
+  // Delete product
+  (window as any).deleteProduct = async (id: string) => {
+    if (!confirm('Delete this product?')) return;
+    await fetch(`/api/products?id=${id}`, { method: 'DELETE' });
+    loadProducts();
+  };
+
+  // Init
+  loadCompanies();
+  loadProducts();
+</script>
