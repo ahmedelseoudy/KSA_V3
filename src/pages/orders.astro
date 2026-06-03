@@ -355,12 +355,64 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
       const rows: any[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
 
       const items = rows.map((row) => {
-        const barcode = String(pickCol(row, ['barcode', 'Barcode', 'External ID', 'external id', 'EAN', 'ean']) || '').replace(/[,\s]/g, '');
-        if (!barcode) return null;
-        const orderQty = parseNumber(pickCol(row, ['order_qty', 'Order_Qty', 'Quantity', 'Quantity Requested', 'quantity requested', 'qty']));
-        const asin = String(pickCol(row, ['asin', 'ASIN', 'Item Code', 'itemcode']) || '');
-        const title = String(pickCol(row, ['title', 'Title', 'ItemDescEn', 'itemdescen', 'description']) || '');
-        const amazonCost = parseNumber(pickCol(row, ['total cost', 'Total Cost', 'amazon_cost', 'Amazon Cost']));
+        // Extract barcode - handle Excel scientific notation conversion
+        const rawBarcode = pickCol(row, [
+          'barcode', 'Barcode', 'BARCODE',
+          'External ID', 'external id', 'external_id', 'EXTERNAL ID',
+          'EAN', 'ean', 'Ean',
+          'SKU', 'sku', 'Sku',
+          'Product Code', 'product code', 'product_code'
+        ]);
+        
+        if (!rawBarcode) return null;
+        
+        // Convert to string and handle scientific notation
+        let barcode = '';
+        if (typeof rawBarcode === 'number') {
+          // Excel converted to number - format with full precision
+          barcode = rawBarcode.toFixed(0);
+        } else {
+          barcode = String(rawBarcode);
+        }
+        
+        // Normalize: remove spaces, commas, and trim
+        barcode = barcode.replace(/[,\s]/g, '').trim();
+        if (!barcode || barcode === '0') return null;
+        
+        const orderQty = parseNumber(pickCol(row, [
+          'order_qty', 'Order_Qty', 'ORDER_QTY',
+          'Quantity', 'quantity', 'QUANTITY', 'Qty', 'qty', 'QTY',
+          'Quantity Requested', 'quantity requested', 'QUANTITY REQUESTED',
+          'Order Quantity', 'order quantity', 'ORDER QUANTITY',
+          'Ordered', 'ordered', 'ORDERED'
+        ]));
+        
+        const asin = String(pickCol(row, [
+          'asin', 'ASIN', 'Asin',
+          'Item Code', 'item code', 'item_code', 'ITEM CODE',
+          'itemcode', 'ItemCode', 'ITEMCODE'
+        ]) || '');
+        
+        const title = String(pickCol(row, [
+          'title', 'Title', 'TITLE',
+          'ItemDescEn', 'itemdescen', 'ITEMDESCEN',
+          'Item Description', 'item description', 'ITEM DESCRIPTION',
+          'description', 'Description', 'DESCRIPTION',
+          'Product Name', 'product name', 'PRODUCT NAME',
+          'Name', 'name', 'NAME'
+        ]) || '');
+        
+        const amazonCost = parseNumber(pickCol(row, [
+          'total cost', 'Total Cost', 'TOTAL COST',
+          'total_cost', 'Total_Cost', 'TOTAL_COST',
+          'amazon_cost', 'Amazon Cost', 'AMAZON COST',
+          'Amazon_Cost', 'AMAZON_COST',
+          'cost', 'Cost', 'COST',
+          'Price', 'price', 'PRICE',
+          'Unit Price', 'unit price', 'UNIT PRICE',
+          'Amount', 'amount', 'AMOUNT'
+        ]));
+        
         return { barcode, order_qty: orderQty, asin, title, amazon_cost: amazonCost };
       }).filter((it): it is NonNullable<typeof it> => it !== null);
 
@@ -370,6 +422,10 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
         result.innerHTML = '<span class="text-red-400">No valid rows found. Check that the file has a barcode column.</span>';
         return;
       }
+      
+      // Debug: Log first item to see what was extracted
+      console.log('Sample extracted item:', items[0]);
+      console.log('Available columns in Excel:', Object.keys(rows[0] || {}));
 
       progress.textContent = `Uploading ${items.length} items…`;
       const resp = await fetch('/api/order-items', {
