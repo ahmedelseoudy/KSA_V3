@@ -78,26 +78,31 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   // 2. If a primary email was provided, provision a company user + send invite.
   let inviteResult: { sent: boolean; error?: string } = { sent: false };
   if (primaryEmail) {
-    const { data: rpcData, error: rpcErr } = await supabase.rpc('create_company_user', {
-      p_email: primaryEmail,
-      p_company_id: company.id,
-    });
-
-    if (rpcErr) {
-      // Company exists but user provisioning failed. Surface the error; admin can resend.
-      inviteResult = { sent: false, error: rpcErr.message };
-    } else {
-      const setupToken = Array.isArray(rpcData) ? rpcData[0]?.setup_token : (rpcData as any)?.setup_token;
-      const setupUrl = `${PUBLIC_APP_URL}/auth/setup?token=${encodeURIComponent(setupToken)}`;
-
-      const { subject, html } = companyInviteEmail({
-        company_name: company.name,
-        setup_url: setupUrl,
+    if (profile.role === 'super_admin') {
+      const { data: rpcData, error: rpcErr } = await supabase.rpc('create_company_user', {
+        p_email: primaryEmail,
+        p_company_id: company.id,
       });
 
-      const allRecipients = Array.from(new Set([primaryEmail, ...additionalEmails])).filter(Boolean);
-      const emailResp = await sendEmail({ to: allRecipients, subject, html });
-      inviteResult = { sent: emailResp.ok, error: emailResp.error };
+      if (rpcErr) {
+        // Company exists but user provisioning failed. Surface the error; admin can resend.
+        inviteResult = { sent: false, error: rpcErr.message };
+      } else {
+        const setupToken = Array.isArray(rpcData) ? rpcData[0]?.setup_token : (rpcData as any)?.setup_token;
+        const setupUrl = `${PUBLIC_APP_URL}/auth/setup?token=${encodeURIComponent(setupToken)}`;
+
+        const { subject, html } = companyInviteEmail({
+          company_name: company.name,
+          setup_url: setupUrl,
+        });
+
+        const allRecipients = Array.from(new Set([primaryEmail, ...additionalEmails])).filter(Boolean);
+        const emailResp = await sendEmail({ to: allRecipients, subject, html });
+        inviteResult = { sent: emailResp.ok, error: emailResp.error };
+      }
+    } else {
+      // Admins can create companies but cannot send invites
+      inviteResult = { sent: false, error: 'Only super_admin can send invitations' };
     }
   }
 

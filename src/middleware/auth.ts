@@ -1,7 +1,7 @@
 import { createSupabaseServerClient } from '../lib/supabase-server';
 import type { APIContext, MiddlewareHandler } from 'astro';
 
-const PUBLIC_ROUTES = ['/login', '/register', '/invite', '/_astro', '/favicon.ico'];
+const PUBLIC_ROUTES = ['/login', '/_astro', '/favicon.ico'];
 const PENDING_ROUTES = ['/waiting-approval', '/login', '/logout'];
 
 export async function authMiddleware(context: APIContext, next: () => Promise<Response>) {

@@ -1,5 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import PageHeader from '../components/ui/PageHeader.astro';
+import StatCard from '../components/ui/StatCard.astro';
 
 const user = Astro.locals.user;
 const profile = (user as any)?.profile;
@@ -11,10 +13,10 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
 
 <Layout title="Purchase Orders - KSA CRM">
   <div class="max-w-7xl mx-auto">
-    <h1 class="text-2xl font-bold text-white mb-6">Purchase Orders</h1>
+    <PageHeader title="Purchase Orders" />
 
     <!-- Filters -->
-    <div class="bg-gray-800 rounded-lg p-4 mb-6 flex gap-4 items-end">
+    <div class="bg-gray-800 rounded-lg p-4 mb-6 flex gap-4 items-end sticky top-0 z-10 bg-gray-800/95 backdrop-blur supports-[backdrop-filter]:bg-gray-800/80">
       <div>
         <label class="block text-sm text-gray-400 mb-1">Company</label>
         <select id="companyFilter" class="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white">
@@ -37,43 +39,50 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
 
     <!-- Stats -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-      <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
-        <p class="text-gray-400 text-sm">Total POs</p>
-        <p class="text-2xl font-bold text-white" id="totalPOs">-</p>
-      </div>
-      <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
-        <p class="text-gray-400 text-sm">Total Value</p>
-        <p class="text-2xl font-bold text-green-400" id="totalValue">-</p>
-      </div>
-      <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
-        <p class="text-gray-400 text-sm">Pending Delivery</p>
-        <p class="text-2xl font-bold text-yellow-400" id="pendingDelivery">-</p>
-      </div>
-      <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
-        <p class="text-gray-400 text-sm">Fully Delivered</p>
-        <p class="text-2xl font-bold text-blue-400" id="fullyDelivered">-</p>
-      </div>
+      <StatCard label="Total POs" valueId="totalPOs" />
+      <StatCard label="Total Value" valueId="totalValue" valueClass="text-green-400" />
+      <StatCard label="Pending Delivery" valueId="pendingDelivery" valueClass="text-yellow-400" />
+      <StatCard label="Fully Delivered" valueId="fullyDelivered" valueClass="text-blue-400" />
     </div>
 
     <!-- PO Table -->
     <div class="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
-          <thead class="bg-gray-700/50">
+          <thead class="bg-gray-700/50 sticky top-0 z-10">
             <tr>
-              <th class="px-4 py-3 text-left text-gray-300">PO Number</th>
-              <th class="px-4 py-3 text-left text-gray-300">Company</th>
-              <th class="px-4 py-3 text-right text-gray-300">Items</th>
-              <th class="px-4 py-3 text-right text-gray-300">Total Amount</th>
-              <th class="px-4 py-3 text-center text-gray-300">Status</th>
-              <th class="px-4 py-3 text-left text-gray-300">Created</th>
+              <th class="px-3 py-3 text-left text-gray-300 w-8"></th>
+              <th data-sort="po_number" class="px-4 py-3 text-left text-gray-300 cursor-pointer select-none">PO Number <span class="text-gray-400 sort" data-key="po_number"></span></th>
+              <th data-sort="company_name" class="px-4 py-3 text-left text-gray-300 cursor-pointer select-none">Company <span class="text-gray-400 sort" data-key="company_name"></span></th>
+              <th data-sort="items" class="px-4 py-3 text-right text-gray-300 cursor-pointer select-none">Items <span class="text-gray-400 sort" data-key="items"></span></th>
+              <th data-sort="total_amount" class="px-4 py-3 text-right text-gray-300 cursor-pointer select-none">Total Amount <span class="text-gray-400 sort" data-key="total_amount"></span></th>
+              <th data-sort="delivery_date" class="px-4 py-3 text-left text-gray-300 cursor-pointer select-none">Delivery Date <span class="text-gray-400 sort" data-key="delivery_date"></span></th>
+              <th class="px-4 py-3 text-left text-gray-300">Availability</th>
+              <th data-sort="status" class="px-4 py-3 text-center text-gray-300 cursor-pointer select-none">Status <span class="text-gray-400 sort" data-key="status"></span></th>
+              <th data-sort="created_at" class="px-4 py-3 text-left text-gray-300 cursor-pointer select-none">Created <span class="text-gray-400 sort" data-key="created_at"></span></th>
               <th class="px-4 py-3 text-center text-gray-300">Actions</th>
             </tr>
           </thead>
           <tbody id="poTableBody">
-            <tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">Loading...</td></tr>
+            <tr><td colspan="10" class="px-4 py-8 text-center text-gray-400">Loading...</td></tr>
           </tbody>
         </table>
+      </div>
+      <div class="flex flex-col md:flex-row items-center justify-between gap-3 p-3 border-t border-gray-700 bg-gray-800/80">
+        <div class="flex items-center gap-2 text-sm text-gray-300">
+          <label for="poPageSize">Rows per page</label>
+          <select id="poPageSize" class="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+            <option value="10">10</option>
+            <option value="20" selected>20</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="poPrev" class="px-3 py-1.5 bg-gray-700 text-white rounded disabled:opacity-50">Prev</button>
+          <span id="poPageInfo" class="text-sm text-gray-300">-</span>
+          <button id="poNext" class="px-3 py-1.5 bg-gray-700 text-white rounded disabled:opacity-50">Next</button>
+        </div>
       </div>
     </div>
   </div>
@@ -116,33 +125,193 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
     document.getElementById('pendingDelivery')!.textContent = String(pos.filter((po: any) => ['sent', 'confirmed', 'partially_delivered'].includes(po.status)).length);
     document.getElementById('fullyDelivered')!.textContent = String(pos.filter((po: any) => po.status === 'delivered').length);
 
-    renderPOTable(pos);
+    // Initialize client-side state for sorting and paging
+    window.__PO_STATE__ = window.__PO_STATE__ || { sortKey: 'created_at', sortDir: 'desc', page: 1, pageSize: 20, data: [] };
+    const st = window.__PO_STATE__;
+    st.data = pos;
+    applySortingAndPaging();
   }
+
+  function getSortValue(po: any, key: string) {
+    switch (key) {
+      case 'po_number': return (po.po_number || '').toString();
+      case 'company_name': return (po.company?.name || '').toString();
+      case 'items': return Number(po.total_items || 0);
+      case 'total_amount': return Number(po.total_amount || 0);
+      case 'delivery_date': return (po.delivery_date || '');
+      case 'status': return (po.status || '');
+      case 'created_at': return (po.created_at || '');
+      default: return '';
+    }
+  }
+
+  function applySortingAndPaging() {
+    const st = (window as any).__PO_STATE__;
+    const { sortKey, sortDir, page, pageSize } = st;
+    // Update header indicators based on current sort state
+    document.querySelectorAll('span.sort').forEach((el) => (el.textContent = ''));
+    const cur = document.querySelector(`span.sort[data-key="${sortKey}"]`);
+    if (cur) cur.textContent = sortDir === 'asc' ? '▲' : '▼';
+    const sorted = [...st.data].sort((a: any, b: any) => {
+      const va = getSortValue(a, sortKey); const vb = getSortValue(b, sortKey);
+      if (va < vb) return sortDir === 'asc' ? -1 : 1;
+      if (va > vb) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+    const start = (page - 1) * pageSize;
+    const pageRows = sorted.slice(start, start + pageSize);
+    renderPOTable(pageRows);
+    const total = sorted.length;
+    const pageCount = Math.max(1, Math.ceil(total / pageSize));
+    document.getElementById('poPageInfo')!.textContent = `Page ${page} of ${pageCount}`;
+    const prev = document.getElementById('poPrev') as HTMLButtonElement; const next = document.getElementById('poNext') as HTMLButtonElement;
+    if (prev) prev.disabled = page <= 1;
+    if (next) next.disabled = page >= pageCount;
+  }
+
+  function wireSortHandlers() {
+    const headers = document.querySelectorAll('th[data-sort]');
+    headers.forEach((th) => {
+      th.addEventListener('click', () => {
+        const key = th.getAttribute('data-sort') || 'created_at';
+        const st = (window as any).__PO_STATE__;
+        if (st.sortKey === key) {
+          st.sortDir = st.sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+          st.sortKey = key; st.sortDir = 'asc';
+        }
+        st.page = 1;
+        // Update header indicators (basic)
+        document.querySelectorAll('span.sort').forEach((el) => el.textContent = '');
+        const span = document.querySelector(`span.sort[data-key="${key}"]`);
+        if (span) span.textContent = st.sortDir === 'asc' ? '▲' : '▼';
+        applySortingAndPaging();
+      });
+    });
+  }
+
+  function wirePagingHandlers() {
+    const prev = document.getElementById('poPrev');
+    const next = document.getElementById('poNext');
+    const size = document.getElementById('poPageSize') as HTMLSelectElement | null;
+    prev?.addEventListener('click', () => { const st = (window as any).__PO_STATE__; st.page = Math.max(1, st.page - 1); applySortingAndPaging(); });
+    next?.addEventListener('click', () => { const st = (window as any).__PO_STATE__; st.page = st.page + 1; applySortingAndPaging(); });
+    size?.addEventListener('change', () => { const st = (window as any).__PO_STATE__; st.pageSize = Number(size.value || '20') || 20; st.page = 1; applySortingAndPaging(); });
+  }
+
+  // Wire once after DOM is ready
+  document.addEventListener('DOMContentLoaded', () => { wireSortHandlers(); wirePagingHandlers(); });
 
   function renderPOTable(pos: any[]) {
     const tbody = document.getElementById('poTableBody');
     if (!tbody) return;
 
     if (pos.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">No purchase orders found.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="10" class="px-4 py-8 text-center text-gray-400">No purchase orders found.</td></tr>';
       return;
     }
 
-    tbody.innerHTML = pos.map(po => `
-      <tr class="border-b border-gray-700/50 hover:bg-gray-700/30">
+    tbody.innerHTML = pos.map(po => {
+      const delivery = po.delivery_date ? new Date(po.delivery_date).toLocaleDateString() : '-';
+      const batchId = po.availability_order?.batch?.id || po.availability_order?.batch_id || po.batch_id || '';
+      const availabilityLink = batchId ? `<a href="/availability?batch_id=${batchId}" class="text-sm text-purple-400 hover:text-purple-300">View</a>` : '-';
+      return `
+      <tr class="border-b border-gray-700/50 group" data-row="${po.id}">
+        <td class="px-3 py-3 align-top">
+          <button class="po-expand-btn w-6 h-6 flex items-center justify-center rounded bg-gray-700 hover:bg-gray-600 text-white text-xs" aria-expanded="false" aria-controls="po-details-${po.id}" data-id="${po.id}">+</button>
+        </td>
         <td class="px-4 py-3 text-white font-mono">${po.po_number || '-'}</td>
         <td class="px-4 py-3 text-white">${po.company?.name || '-'}</td>
         <td class="px-4 py-3 text-right text-white">${po.total_items}</td>
         <td class="px-4 py-3 text-right text-white">$${Number(po.total_amount).toFixed(2)}</td>
+        <td class="px-4 py-3 text-white">${delivery}</td>
+        <td class="px-4 py-3">${availabilityLink}</td>
         <td class="px-4 py-3 text-center">
           <span class="px-2 py-0.5 text-xs rounded-full ${statusColors[po.status] || 'bg-gray-700 text-gray-300'}">${po.status.replace(/_/g, ' ')}</span>
         </td>
         <td class="px-4 py-3 text-gray-400 text-sm">${new Date(po.created_at).toLocaleDateString()}</td>
-        <td class="px-4 py-3 text-center">
-          <a href="/deliveries?company_id=${po.company_id}" class="text-sm text-purple-400 hover:text-purple-300">Track</a>
+        <td class="px-4 py-3 text-center space-x-3">
+          <a href="/deliveries?po_id=${po.id}" class="text-sm text-purple-400 hover:text-purple-300">Record Delivery</a>
+          <a href="/comparison?po_id=${po.id}" class="text-sm text-purple-400 hover:text-purple-300">Compare</a>
         </td>
       </tr>
-    `).join('');
+      <tr id="po-details-${po.id}" class="hidden border-b border-gray-800/50 bg-gray-900/40" data-loaded="false">
+        <td></td>
+        <td class="px-4 py-3" colspan="9">
+          <div class="text-gray-400 text-sm" id="po-details-content-${po.id}">Loading items...</div>
+        </td>
+      </tr>
+    `}).join('');
+
+    // Wire expand/collapse and lazy-load items
+    const btns = tbody.querySelectorAll('.po-expand-btn');
+    btns.forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const id = (e.currentTarget as HTMLElement).getAttribute('data-id');
+        if (!id) return;
+        const row = document.getElementById(`po-details-${id}`)!;
+        const btnEl = e.currentTarget as HTMLButtonElement;
+        const expanded = btnEl.getAttribute('aria-expanded') === 'true';
+        if (expanded) {
+          btnEl.setAttribute('aria-expanded', 'false');
+          btnEl.textContent = '+';
+          row.classList.add('hidden');
+          return;
+        }
+        btnEl.setAttribute('aria-expanded', 'true');
+        btnEl.textContent = '−';
+        row.classList.remove('hidden');
+        if (row.getAttribute('data-loaded') !== 'true') {
+          await loadPOItems(id);
+          row.setAttribute('data-loaded', 'true');
+        }
+      });
+    });
+  }
+
+  async function loadPOItems(poId) {
+    const target = document.getElementById(`po-details-content-${poId}`);
+    if (!target) return;
+    try {
+      const resp = await fetch(`/api/purchase-orders?id=${poId}&items=true`);
+      if (!resp.ok) { target.textContent = 'Failed to load items.'; return; }
+      const { data } = await resp.json();
+      const items = Array.isArray(data) ? data : [];
+      const renderRow = (it) => `
+        <tr class="border-b border-gray-800/50">
+          <td class="px-3 py-2 text-gray-100">${it.product?.title || it.product?.barcode || '-'}</td>
+          <td class="px-3 py-2 text-right text-gray-200">${it.quantity}</td>
+          <td class="px-3 py-2 text-right text-gray-200">${Number(it.boxes || 0).toFixed(2)}</td>
+          <td class="px-3 py-2 text-right text-gray-200">$${Number(it.price_per_box || 0).toFixed(2)}</td>
+          <td class="px-3 py-2 text-right text-gray-200">$${Number(it.total_price || 0).toFixed(2)}</td>
+          <td class="px-3 py-2 text-center text-gray-300">${(it.delivered_qty || 0)}/${it.quantity}</td>
+          <td class="px-3 py-2 text-gray-300">${it.delivery_notes ? String(it.delivery_notes) : '-'}</td>
+        </tr>
+      `;
+      target.innerHTML = items.length === 0 ? '<div class="text-sm text-gray-500">No items in this purchase order.</div>' : `
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead class="bg-gray-800/60">
+              <tr>
+                <th class="px-3 py-2 text-left text-gray-300">Product</th>
+                <th class="px-3 py-2 text-right text-gray-300">Qty</th>
+                <th class="px-3 py-2 text-right text-gray-300">Boxes</th>
+                <th class="px-3 py-2 text-right text-gray-300">Price/Box</th>
+                <th class="px-3 py-2 text-right text-gray-300">Total</th>
+                <th class="px-3 py-2 text-center text-gray-300">Delivered</th>
+                <th class="px-3 py-2 text-left text-gray-300">Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${items.map(renderRow).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    } catch (e) {
+      target.textContent = 'Error loading items.';
+    }
   }
 
   document.getElementById('companyFilter')?.addEventListener('change', loadPOs);

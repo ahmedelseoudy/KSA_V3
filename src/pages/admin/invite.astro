@@ -1,0 +1,167 @@
+---
+import Layout from '../../layouts/Layout.astro';
+
+const user = Astro.locals.user;
+const profile = (user as any)?.profile;
+
+if (!user || !profile) {
+  return Astro.redirect('/login');
+}
+
+// Super admin only
+if (profile.role !== 'super_admin') {
+  return Astro.redirect('/dashboard');
+}
+---
+
+<Layout title="Invite Companies — KSA CRM">
+  <div class="max-w-4xl mx-auto">
+    <div class="mb-6">
+      <h1 class="text-2xl font-bold text-white">Invite Companies</h1>
+      <p class="text-gray-400 mt-1">Send a portal invitation to a company's email. This assigns the invited user to the selected company.</p>
+    </div>
+
+    <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-8">
+      <h2 class="text-lg font-semibold text-white mb-4">Send Invitation</h2>
+      <form id="inviteForm" class="space-y-4">
+        <div>
+          <label class="block text-sm text-gray-400 mb-1">Company</label>
+          <select id="companySelect" required class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none">
+            <option value="">Loading companies...</option>
+          </select>
+          <p id="companyStatus" class="mt-1 text-xs text-gray-500"></p>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-400 mb-1">Invite Email</label>
+          <input id="emailInput" type="email" required placeholder="company@example.com"
+            class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none" />
+          <p class="text-xs text-gray-500 mt-1">Prefilled from company.invite_email (if present) or company.email. You can override before sending.</p>
+        </div>
+        <div class="flex gap-3">
+          <button type="submit" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">Send Invite</button>
+          <button id="resendBtn" type="button" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 hidden">Resend Existing Invite</button>
+        </div>
+        <div id="feedback" class="hidden mt-2 text-sm"></div>
+      </form>
+    </div>
+
+    <div class="bg-gray-800 rounded-xl border border-gray-700 p-6">
+      <h2 class="text-lg font-semibold text-white mb-4">Companies (Active)</h2>
+      <div id="companiesList" class="text-sm text-gray-300">Loading...</div>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  type Company = {
+    id: string;
+    name: string;
+    email?: string | null;
+    invite_email?: string | null;
+    user_id?: string | null;
+  };
+
+  async function fetchCompanies(): Promise<{ data: Company[] }> {
+    const params = new URLSearchParams();
+    params.set('status', 'active');
+    const resp = await fetch(`/api/companies?${params.toString()}`);
+    if (!resp.ok) return { data: [] };
+    return resp.json();
+  }
+
+  function setFeedback(msg: string, type: 'info' | 'error' | 'success' = 'info') {
+    const el = document.getElementById('feedback');
+    if (!el) return;
+    el.textContent = msg;
+    el.className = 'mt-2 text-sm ' + (type === 'error' ? 'text-red-400' : type === 'success' ? 'text-green-400' : 'text-gray-400');
+    el.classList.remove('hidden');
+  }
+
+  function clearFeedback() {
+    const el = document.getElementById('feedback');
+    if (el) el.classList.add('hidden');
+  }
+
+  function hydrateCompaniesSelect(companies: Company[]) {
+    const sel = document.getElementById('companySelect');
+    const list = document.getElementById('companiesList');
+    if (!sel || !list) return;
+    sel.innerHTML = '<option value="">Select a company...</option>' +
+      companies.map((c: Company) => `<option value="${c.id}">${c.name}</option>`).join('');
+
+    list.innerHTML = companies.map((c: Company) => {
+      const email = c.invite_email || c.email || '';
+      const status = c.user_id ? 'Linked user' : 'No user linked';
+      return `<div class="py-2 border-b border-gray-700/50">
+        <div class="text-white font-medium">${c.name}</div>
+        <div class="text-gray-400 text-xs">${email ? '📧 ' + email : 'No email on file'}</div>
+        <div class="text-gray-500 text-xs">${status}</div>
+      </div>`;
+    }).join('');
+  }
+
+  function applyPrefillForCompany(companies: Company[], companyId: string) {
+    const company = companies.find((c: Company) => c.id === companyId);
+    const emailInput = document.getElementById('emailInput') as HTMLInputElement | null;
+    const statusEl = document.getElementById('companyStatus');
+    const resendBtn = document.getElementById('resendBtn');
+    if (!company || !emailInput || !statusEl || !resendBtn) return;
+
+    emailInput.value = (company.invite_email || company.email || '').trim();
+    statusEl.textContent = company.user_id
+      ? 'A portal user is already linked. Use "Resend Existing Invite" to send a fresh setup link.'
+      : 'No portal user linked yet. Sending an invite will provision the user and link to this company.';
+
+    resendBtn.classList.toggle('hidden', !company.user_id);
+    (resendBtn as HTMLButtonElement).onclick = async () => {
+      try {
+        const resp = await fetch('/api/companies/resend-invite', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ company_id: companyId })
+        });
+        const json = await resp.json().catch(() => ({}));
+        if (!resp.ok || !json.sent) throw new Error(json.error || 'Failed to resend');
+        setFeedback('Invite re-sent successfully', 'success');
+      } catch (e: any) { setFeedback('Error: ' + ((e && e.message) || 'Failed to resend'), 'error'); }
+    };
+  }
+
+  (async function init() {
+    try {
+      const { data } = await fetchCompanies();
+      const companies: Company[] = Array.isArray(data) ? data : [];
+      hydrateCompaniesSelect(companies);
+
+      const sel = document.getElementById('companySelect');
+      sel?.addEventListener('change', (e) => {
+        clearFeedback();
+        const id = (e.target as HTMLSelectElement).value;
+        if (id) applyPrefillForCompany(companies, id);
+      });
+
+      const form = document.getElementById('inviteForm');
+      form?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        clearFeedback();
+        const companyId: string = (document.getElementById('companySelect') as HTMLSelectElement).value;
+        const email: string = (document.getElementById('emailInput') as HTMLInputElement).value.trim().toLowerCase();
+        if (!companyId) { setFeedback('Please select a company', 'error'); return; }
+        if (!email) { setFeedback('Please enter an email', 'error'); return; }
+        try {
+          const resp = await fetch('/api/companies/provision-user', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ company_id: companyId, email })
+          });
+          const json = await resp.json().catch(() => ({}));
+          if (!resp.ok || !json.success) throw new Error(json.error || 'Failed to send invite');
+          setFeedback('Invitation sent successfully', 'success');
+        } catch (e: any) {
+          setFeedback('Error: ' + ((e && e.message) || 'Failed to send invite'), 'error');
+        }
+      });
+    } catch (e) {
+      hydrateCompaniesSelect([]);
+      setFeedback('Failed to load companies. Please refresh.', 'error');
+    }
+  })();
+</script>

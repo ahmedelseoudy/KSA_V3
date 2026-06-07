@@ -110,6 +110,82 @@ RESEND_FROM_EMAIL=KSA CRM <onboarding@resend.dev>
 
 ---
 
+## 🔄 Order → Delivery Process Overview
+
+This is the end-to-end flow implemented in the app, from uploading a batch to delivery tracking.
+
+1) Create an Order Batch (status: draft)
+   - Page: Orders → + New Order Batch → enter name/PO/notes.
+   - API: POST /api/orders → inserts into `order_batches`.
+
+2) Upload Orders file into the batch
+   - Page: Orders → for a draft batch, click Upload Orders.
+   - The XLSX parser extracts columns even if headers vary (Quantity, Qty, Order_Qty, Total Cost, Price, EAN/SKU/External ID, etc.).
+   - Barcodes are normalized (including fixing Excel scientific notation) before upload.
+   - API: POST /api/order-items
+     - Loads all products (paged) and matches by `barcode`.
+     - For matched items: computes boxes, provider cost, P&L, assigns `company_id` and `product_id`.
+     - Updates the batch totals: `total_items`, `total_value`.
+
+3) Review Batch Items
+   - Page: Orders → View Items → tabs for All / Matched / Unmatched.
+   - You’ll see per-item P&L and company attribution.
+
+4) Send Availability Requests (status: availability_sent)
+   - Action: Send Availability Requests (creates one availability order per company in the batch with matched items).
+   - API: POST /api/availability { action: 'generate' }
+     - Creates `availability_orders` rows (per company) and `availability_responses` (per item per company).
+     - Updates the batch to `availability_sent`.
+     - Emails each company with a portal link to respond.
+
+5) Company Responds in the Portal
+   - Page: Company Portal → Availability.
+   - Company marks items Available/Unavailable (bulk mark helpers included).
+   - API: POST /api/availability { action: 'respond' } updates response rows and the `availability_orders` status.
+
+6) Generate Purchase Orders (status: po_sent)
+   - Action: Generate Purchase Orders → enter a PO number.
+   - API: POST /api/purchase-orders { action: 'generate' }
+     - Creates `purchase_orders` and `purchase_order_items` using available quantities.
+     - Sets batch status to `po_sent`.
+     - Emails each company their PO.
+
+7) Delivery Tracking and Completion
+   - API: POST /api/purchase-orders { action: 'update_delivery' }
+     - Updates delivered quantities and sets PO status to `partially_delivered` or `delivered`.
+   - Batch-level finalization can be derived from its POs (optional automation).
+
+---
+
+## 🧪 Ahmed End‑to‑End Test Walkthrough
+
+This walkthrough uses the sample Excel you uploaded and the “Ahmed” company to validate the full flow.
+
+Prerequisites
+- “Ahmed” exists in Companies and has a primary email set.
+- The four Ahmed products are present (barcodes: 6285009002338, 6287013830266, 8051732622840, 8057457190947).
+- Email delivery is configured via `RESEND_API_KEY` and `RESEND_FROM_EMAIL` in `.env`.
+
+Steps
+1) Create a new batch: Orders → + New Order Batch (e.g., “Ahmed Test Batch”).
+2) Upload orders file: click Upload Orders on the new batch and select your XLSX.
+   - Confirm items matched for Ahmed and P&L values look realistic.
+   - Use the View Items modal filters (Company and P&L) to focus on Ahmed and see totals at the bottom.
+3) Send Availability Requests: click the button on the batch card.
+   - Ahmed will receive an email with a portal link (if email is configured).
+4) Respond as Ahmed:
+   - Complete the portal setup from the invite email if needed.
+   - Navigate to Portal → Availability → Respond to items (mark available/unavailable) → Save Responses.
+5) Generate Purchase Orders: back on Orders, click Generate Purchase Orders and enter a PO number.
+   - Ahmed receives a PO email and can view it in the portal.
+6) Track Deliveries: optionally update delivered quantities via the Deliveries/PO workflow.
+
+Troubleshooting
+- If Ahmed has no portal user yet, go to Companies → Ahmed → Resend Invite (or use the new admin API to provision) to send the setup email.
+- If emails don’t arrive, verify `RESEND_API_KEY` and check `/api/*` responses or server logs.
+
+---
+
 ## 🧞 Commands
 
 | Command | Action |
@@ -211,3 +287,22 @@ Then create the super-admin user in **Authentication → Users → Invite user**
 ## 📄 License
 
 Private — All rights reserved © 2026 KSA.
+
+---
+
+## 🧩 UI/UX Enhancements (June 2026)
+
+- **Sortable, paginated tables**
+  - Purchase Orders and Availability tables now support client-side sorting (click headers) and pagination (rows per page: 10/20/50/100).
+  - Sort indicators are shown on the active column as ▲ (ascending) or ▼ (descending).
+  - Sticky filter bars and table headers improve usability during scroll.
+
+- **Reusable UI components**
+  - `src/components/ui/PageHeader.astro` for consistent page titles and action slots.
+  - `src/components/ui/StatCard.astro` for KPI cards with optional live value binding via `valueId`.
+
+- **Navigation**
+  - Admin: added `Comparison` to see cross-order analytics.
+  - Company Portal: added `Deliveries` (read-only) in the sidebar.
+
+Notes for devs: Sorting and pagination state are maintained in `window.__PO_STATE__` and `window.__AV_STATE__`. When adding new sortable columns, set the `data-sort`/`data-avsort` attribute on the header and include a `<span class="sort" data-key="...">` for the indicator.

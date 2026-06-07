@@ -1,7 +1,7 @@
 import { defineMiddleware } from 'astro:middleware';
 import { createSupabaseServerClient } from './lib/supabase-server';
 
-const PUBLIC_ROUTES = ['/login', '/register', '/invite', '/api', '/_astro', '/favicon.ico', '/waiting-approval', '/auth/setup'];
+const PUBLIC_ROUTES = ['/login', '/api', '/_astro', '/favicon.ico', '/waiting-approval', '/auth/setup'];
 
 export const onRequest = defineMiddleware(async (context, next) => {
   // Allow public routes to pass through
@@ -47,9 +47,23 @@ export const onRequest = defineMiddleware(async (context, next) => {
   context.locals.user = userWithProfile;
   context.locals.session = session;
 
+  // If not authenticated, force login
   if (!user) {
     return context.redirect('/login');
   }
+
+  // Hard guard: company users are only allowed to access their portal and API/static assets.
+  try {
+    const role = (userWithProfile as any)?.profile?.role;
+    if (role === 'company') {
+      const path = context.url.pathname;
+      const allowedPrefixes = ['/portal', '/api', '/_astro', '/favicon.ico'];
+      const isAllowed = allowedPrefixes.some((p) => path.startsWith(p));
+      if (!isAllowed) {
+        return context.redirect('/portal');
+      }
+    }
+  } catch {}
 
   return next();
 });

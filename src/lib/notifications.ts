@@ -7,7 +7,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { sendEmail, PUBLIC_APP_URL } from './email';
-import { availabilityRequestEmail, purchaseOrderEmail } from './email-templates';
+import { availabilityRequestEmail, purchaseOrderEmail, deliveryUpdateEmail } from './email-templates';
 
 interface CompanyContact {
   id: string;
@@ -39,7 +39,7 @@ async function recordNotification(
   opts: {
     company_id: string;
     recipient_id: string | null;
-    type: 'availability_request' | 'po_sent';
+    type: 'availability_request' | 'po_sent' | 'delivery_reminder' | 'order_completed';
     subject: string;
     body: string;
     sent: boolean;
@@ -93,6 +93,49 @@ export async function sendAvailabilityRequestEmail(
     company_id: company.id,
     recipient_id: company.user_id,
     type: 'availability_request',
+    subject,
+    body: `Sent to ${recipients.join(', ')} | ${portalUrl}`,
+    sent: result.ok,
+    error: result.error,
+  });
+
+  return { company_id: company.id, sent: result.ok, error: result.error };
+}
+
+export async function sendDeliveryConfirmationEmail(
+  supabase: SupabaseClient,
+  opts: {
+    company_id: string;
+    purchase_order_id: string;
+    po_number: string;
+    delivered_count: number;
+    total_items: number;
+    is_complete: boolean;
+  }
+): Promise<DispatchResult> {
+  const company = await getCompanyContact(supabase, opts.company_id);
+  if (!company) return { company_id: opts.company_id, sent: false, error: 'Company not found' };
+
+  const recipients = recipientList(company);
+  if (recipients.length === 0) {
+    return { company_id: opts.company_id, sent: false, error: 'No email addresses on file' };
+  }
+
+  const portalUrl = `${PUBLIC_APP_URL}/portal/purchase-orders?focus=${opts.purchase_order_id}`;
+  const { subject, html } = deliveryUpdateEmail({
+    company_name: company.name,
+    po_number: opts.po_number,
+    delivered_count: opts.delivered_count,
+    total_items: opts.total_items,
+    portal_url: portalUrl,
+    is_complete: opts.is_complete,
+  });
+
+  const result = await sendEmail({ to: recipients, subject, html });
+  await recordNotification(supabase, {
+    company_id: company.id,
+    recipient_id: company.user_id,
+    type: opts.is_complete ? 'order_completed' : 'delivery_reminder',
     subject,
     body: `Sent to ${recipients.join(', ')} | ${portalUrl}`,
     sent: result.ok,

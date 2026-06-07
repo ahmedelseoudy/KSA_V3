@@ -22,6 +22,12 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ['admin', 'super_admin']
   },
   {
+    path: '/admin/invite',
+    label: 'Invites',
+    icon: '✉️',
+    roles: ['super_admin']
+  },
+  {
     path: '/orders',
     label: 'Order Batches',
     icon: '📋',
@@ -37,6 +43,12 @@ export const NAV_ITEMS: NavItem[] = [
     path: '/purchase-orders',
     label: 'Purchase Orders',
     icon: '📝',
+    roles: ['admin', 'super_admin']
+  },
+  {
+    path: '/comparison',
+    label: 'Comparison',
+    icon: '🔀',
     roles: ['admin', 'super_admin']
   },
   {
@@ -73,6 +85,12 @@ export const NAV_ITEMS: NavItem[] = [
     path: '/portal/purchase-orders',
     label: 'Purchase Orders',
     icon: '📝',
+    roles: ['company']
+  },
+  {
+    path: '/portal/deliveries',
+    label: 'Deliveries',
+    icon: '🚚',
     roles: ['company']
   }
 ];

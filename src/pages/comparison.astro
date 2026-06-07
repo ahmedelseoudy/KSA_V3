@@ -1,0 +1,442 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const user = Astro.locals.user;
+const profile = (user as any)?.profile;
+
+if (!profile || !['admin', 'super_admin', 'company'].includes(profile.role)) {
+  return Astro.redirect('/dashboard');
+}
+const isAdmin = ['admin', 'super_admin'].includes(profile.role);
+---
+
+<Layout title="Comparison - Availability · PO · Delivery">
+  <div class="max-w-7xl mx-auto">
+    <h1 class="text-2xl font-bold text-white mb-6">Comparison</h1>
+
+    {isAdmin && (
+      <section id="adminDashboard" class="mb-8">
+        <div class="bg-gray-800 rounded-lg border border-gray-700 mb-4">
+          <div class="p-4 border-b border-gray-700">
+            <h2 class="text-lg font-semibold text-white">Admin Comparison Dashboard</h2>
+          </div>
+          <div class="px-4 py-3 flex flex-wrap items-end gap-4">
+            <div>
+              <label class="block text-sm text-gray-400 mb-1">Companies</label>
+              <select id="cmpMulti" multiple size="4" class="min-w-[18rem] px-2 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"></select>
+              <div class="text-xs text-gray-500 mt-1">Leave empty to include all</div>
+            </div>
+            <div>
+              <label class="block text-sm text-gray-400 mb-1">Date field</label>
+              <select id="dateField" class="px-2 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm min-w-[12rem]">
+                <option value="po_created">PO Created</option>
+                <option value="delivery_date">Delivery Date</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm text-gray-400 mb-1">From</label>
+              <input id="dateFrom" type="date" class="px-2 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm min-w-[12rem]" />
+            </div>
+            <div>
+              <label class="block text-sm text-gray-400 mb-1">To</label>
+              <input id="dateTo" type="date" class="px-2 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm min-w-[12rem]" />
+            </div>
+            <div class="ml-auto flex items-end gap-3">
+              <button id="applyDash" class="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">Apply</button>
+              <button id="exportDash" class="px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 hover:bg-gray-600">Export CSV</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div class="bg-gray-800 rounded-lg p-4 border border-gray-700"><p class="text-gray-400 text-sm">Total POs</p><p id="kpiTotalPOs" class="text-2xl font-bold text-white">-</p></div>
+          <div class="bg-gray-800 rounded-lg p-4 border border-gray-700"><p class="text-gray-400 text-sm">Requested Qty</p><p id="kpiRequested" class="text-2xl font-bold text-white">-</p></div>
+          <div class="bg-gray-800 rounded-lg p-4 border border-gray-700"><p class="text-gray-400 text-sm">Available Qty</p><p id="kpiAvailable" class="text-2xl font-bold text-white">-</p></div>
+          <div class="bg-gray-800 rounded-lg p-4 border border-gray-700"><p class="text-gray-400 text-sm">Ordered Qty</p><p id="kpiOrdered" class="text-2xl font-bold text-white">-</p></div>
+          <div class="bg-gray-800 rounded-lg p-4 border border-gray-700"><p class="text-gray-400 text-sm">Delivered Qty</p><p id="kpiDelivered" class="text-2xl font-bold text-white">-</p></div>
+          <div class="bg-gray-800 rounded-lg p-4 border border-gray-700"><p class="text-gray-400 text-sm">Fill Rate</p><p id="kpiFillRate" class="text-2xl font-bold text-green-400">-</p></div>
+          <div class="bg-gray-800 rounded-lg p-4 border border-gray-700"><p class="text-gray-400 text-sm">Order Conversion</p><p id="kpiOrderRate" class="text-2xl font-bold text-blue-400">-</p></div>
+          <div class="bg-gray-800 rounded-lg p-4 border border-gray-700"><p class="text-gray-400 text-sm">Delivery Rate</p><p id="kpiDeliveryRate" class="text-2xl font-bold text-purple-400">-</p></div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+            <div class="p-4 border-b border-gray-700"><h3 class="text-white font-semibold">By Company</h3></div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead class="bg-gray-700/50">
+                  <tr>
+                    <th class="px-3 py-2 text-left text-gray-300">Company</th>
+                    <th class="px-3 py-2 text-right text-gray-300">Requested</th>
+                    <th class="px-3 py-2 text-right text-gray-300">Available</th>
+                    <th class="px-3 py-2 text-right text-gray-300">Ordered</th>
+                    <th class="px-3 py-2 text-right text-gray-300">Delivered</th>
+                    <th class="px-3 py-2 text-right text-gray-300">Fill %</th>
+                    <th class="px-3 py-2 text-right text-gray-300">Delivery %</th>
+                  </tr>
+                </thead>
+                <tbody id="companyBody"><tr><td colspan="7" class="px-4 py-6 text-center text-gray-400">Loading…</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+            <div class="p-4 border-b border-gray-700"><h3 class="text-white font-semibold">By Order</h3></div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead class="bg-gray-700/50">
+                  <tr>
+                    <th class="px-3 py-2 text-left text-gray-300">PO</th>
+                    <th class="px-3 py-2 text-left text-gray-300">Company</th>
+                    <th class="px-3 py-2 text-left text-gray-300">Created</th>
+                    <th class="px-3 py-2 text-right text-gray-300">Ordered</th>
+                    <th class="px-3 py-2 text-right text-gray-300">Delivered</th>
+                    <th class="px-3 py-2 text-right text-gray-300">Delivery %</th>
+                    <th class="px-3 py-2 text-right text-gray-300">Amount</th>
+                  </tr>
+                </thead>
+                <tbody id="ordersBody"><tr><td colspan="7" class="px-4 py-6 text-center text-gray-400">Loading…</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+    )}
+
+    <div class="bg-gray-800 rounded-lg p-4 mb-6">
+      <form id="compareForm" class="flex items-end gap-4">
+        <div>
+          <label class="block text-sm text-gray-400 mb-1">Purchase Order</label>
+          <input id="poIdInput" type="text" placeholder="Enter PO ID or use link"
+                 class="w-80 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white" />
+        </div>
+        <button type="submit" class="px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700">Load</button>
+      </form>
+    </div>
+
+    <div id="header" class="bg-gray-800 rounded-lg p-4 border border-gray-700 mb-4 hidden"></div>
+
+    <div class="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-700/50">
+            <tr>
+              <th class="px-3 py-2 text-left text-gray-300">Product</th>
+              <th class="px-3 py-2 text-right text-gray-300">Requested</th>
+              <th class="px-3 py-2 text-right text-gray-300">Available</th>
+              <th class="px-3 py-2 text-right text-gray-300">Ordered</th>
+              <th class="px-3 py-2 text-right text-gray-300">Delivered</th>
+              <th class="px-3 py-2 text-left text-gray-300">Availability Notes</th>
+              <th class="px-3 py-2 text-left text-gray-300">Delivery Notes</th>
+            </tr>
+          </thead>
+          <tbody id="compareBody">
+            <tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">Provide a PO via link or input to view comparison.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  function fmt(n) { try { return Number(n || 0).toLocaleString(); } catch { return String(n || 0); } }
+  function pct(a, b) { const x = Number(a || 0), y = Number(b || 0); return y > 0 ? ((x / y) * 100) : 0; }
+  function toISODate(d) { if (!d) return ''; const x = new Date(d); if (isNaN(x.getTime())) return ''; return x.toISOString().slice(0,10); }
+
+  async function loadDashboard() {
+    const cmpEl = document.getElementById('cmpMulti');
+    const dateFromEl = document.getElementById('dateFrom');
+    const dateToEl = document.getElementById('dateTo');
+    const dateFieldEl = document.getElementById('dateField');
+    const today = new Date();
+    const from = new Date(today.getFullYear(), today.getMonth(), 1);
+    if (dateFromEl && !dateFromEl.value) dateFromEl.value = toISODate(from);
+    if (dateToEl && !dateToEl.value) dateToEl.value = toISODate(today);
+
+    let pos = [];
+    try {
+      const r = await fetch('/api/purchase-orders');
+      const j = await r.json().catch(() => ({}));
+      pos = Array.isArray(j.data) ? j.data : [];
+    } catch {}
+
+    const companies = new Map();
+    for (const po of pos) { const c = po.company; if (c?.id && c?.name) companies.set(c.id, c.name); }
+    if (cmpEl) {
+      cmpEl.innerHTML = Array.from(companies.entries()).sort((a,b)=>a[1].localeCompare(b[1]))
+        .map(([id,name]) => `<option value="${id}">${name}</option>`).join('');
+    }
+
+    async function loadItemsForPOs(poList) {
+      const itemsByPO = new Map();
+      const queue = [...poList];
+      const workers = 4;
+      async function worker() {
+        while (queue.length) {
+          const po = queue.shift();
+          try {
+            const r = await fetch(`/api/purchase-orders?id=${po.id}&items=true`);
+            const j = await r.json().catch(() => ({}));
+            const items = Array.isArray(j.data) ? j.data : [];
+            itemsByPO.set(po.id, items);
+          } catch {}
+        }
+      }
+      await Promise.all(Array.from({length: workers}, worker));
+      return itemsByPO;
+    }
+
+    async function loadAvailForAOs(aos) {
+      const byAO = new Map();
+      const queue = [...aos];
+      const workers = 4;
+      async function worker() {
+        while (queue.length) {
+          const id = queue.shift();
+          try {
+            const r = await fetch(`/api/availability?id=${id}`);
+            const j = await r.json().catch(() => ({}));
+            const rows = Array.isArray(j.data) ? j.data : [];
+            byAO.set(id, rows);
+          } catch {}
+        }
+      }
+      await Promise.all(Array.from({length: workers}, worker));
+      return byAO;
+    }
+
+    async function applyFilters() {
+      const selected = Array.from((cmpEl?.selectedOptions || [])).map(o => o.value);
+      const df = dateFromEl?.value || '';
+      const dt = dateToEl?.value || '';
+      const field = dateFieldEl?.value || 'po_created';
+
+      let rows = [...pos];
+      if (selected.length > 0) rows = rows.filter(po => selected.includes(po.company_id));
+      if (df) {
+        rows = rows.filter(po => {
+          const v = field === 'delivery_date' ? po.delivery_date : po.created_at;
+          return v && v.slice(0,10) >= df;
+        });
+      }
+      if (dt) {
+        rows = rows.filter(po => {
+          const v = field === 'delivery_date' ? po.delivery_date : po.created_at;
+          return v && v.slice(0,10) <= dt;
+        });
+      }
+
+      document.getElementById('kpiTotalPOs')?.replaceChildren(document.createTextNode(String(rows.length)));
+
+      const itemsByPO = await loadItemsForPOs(rows);
+      const aoIds = Array.from(new Set(rows.map(po => po.availability_order_id).filter(Boolean)));
+      const availByAO = await loadAvailForAOs(aoIds);
+
+      let requestedQty = 0; let availableQty = 0; let orderedQty = 0; let deliveredQty = 0; let orderedValue = 0; let deliveredValue = 0;
+      const byCompany = new Map();
+
+      for (const po of rows) {
+        const items = itemsByPO.get(po.id) || [];
+        let poOrdered = 0; let poDelivered = 0; let poAmount = 0; let poDeliveredAmount = 0;
+        for (const it of items) {
+          const qty = Number(it.quantity || 0);
+          const del = Number(it.delivered_qty || 0);
+          const totalPrice = Number(it.total_price || 0);
+          poOrdered += qty;
+          poDelivered += del;
+          poAmount += totalPrice;
+          poDeliveredAmount += qty > 0 ? (del / qty) * totalPrice : 0;
+        }
+
+        orderedQty += poOrdered;
+        deliveredQty += poDelivered;
+        orderedValue += poAmount;
+        deliveredValue += poDeliveredAmount;
+
+        const cmp = po.company || { id: po.company_id, name: '' };
+        if (!byCompany.has(cmp.id)) byCompany.set(cmp.id, { name: cmp.name || cmp.id, requested: 0, available: 0, ordered: 0, delivered: 0 });
+        const agg = byCompany.get(cmp.id);
+        agg.ordered += poOrdered;
+        agg.delivered += poDelivered;
+
+        if (po.availability_order_id && availByAO.has(po.availability_order_id)) {
+          const rows = availByAO.get(po.availability_order_id) || [];
+          let r = 0; let a = 0;
+          for (const row of rows) {
+            r += Number(row.order_item?.order_qty || 0);
+            if (row.is_available === true) a += Number(row.available_qty || 0);
+          }
+          requestedQty += r;
+          availableQty += a;
+          agg.requested += r;
+          agg.available += a;
+        }
+      }
+
+      const fill = pct(availableQty, requestedQty);
+      const orderRate = pct(orderedQty, requestedQty);
+      const deliveryRate = pct(deliveredQty, orderedQty);
+
+      document.getElementById('kpiRequested')?.replaceChildren(document.createTextNode(fmt(requestedQty)));
+      document.getElementById('kpiAvailable')?.replaceChildren(document.createTextNode(fmt(availableQty)));
+      document.getElementById('kpiOrdered')?.replaceChildren(document.createTextNode(fmt(orderedQty)));
+      document.getElementById('kpiDelivered')?.replaceChildren(document.createTextNode(fmt(deliveredQty)));
+      document.getElementById('kpiFillRate')?.replaceChildren(document.createTextNode(fill.toFixed(1) + '%'));
+      document.getElementById('kpiOrderRate')?.replaceChildren(document.createTextNode(orderRate.toFixed(1) + '%'));
+      document.getElementById('kpiDeliveryRate')?.replaceChildren(document.createTextNode(deliveryRate.toFixed(1) + '%'));
+
+      const companyBody = document.getElementById('companyBody');
+      if (companyBody) {
+        const rowsHtml = Array.from(byCompany.entries())
+          .sort((a,b)=> (b[1].ordered||0) - (a[1].ordered||0))
+          .map(([id, v]) => {
+            const f = pct(v.available, v.requested);
+            const d = pct(v.delivered, v.ordered);
+            return `<tr class="border-b border-gray-800/50">
+              <td class="px-3 py-2 text-white">${v.name}</td>
+              <td class="px-3 py-2 text-right text-gray-200">${fmt(v.requested)}</td>
+              <td class="px-3 py-2 text-right text-gray-200">${fmt(v.available)}</td>
+              <td class="px-3 py-2 text-right text-gray-200">${fmt(v.ordered)}</td>
+              <td class="px-3 py-2 text-right text-gray-200">${fmt(v.delivered)}</td>
+              <td class="px-3 py-2 text-right ${f>=80?'text-green-400':'text-yellow-400'}">${f.toFixed(1)}%</td>
+              <td class="px-3 py-2 text-right ${d>=80?'text-green-400':'text-yellow-400'}">${d.toFixed(1)}%</td>
+            </tr>`;
+          }).join('');
+        companyBody.innerHTML = rowsHtml || '<tr><td colspan="7" class="px-4 py-6 text-center text-gray-400">No data</td></tr>';
+      }
+
+      const ordersBody = document.getElementById('ordersBody');
+      if (ordersBody) {
+        const rowsHtml = rows.map(po => {
+          const items = itemsByPO.get(po.id) || [];
+          let o = 0, d = 0, amt = 0, damt = 0;
+          for (const it of items) {
+            const qty = Number(it.quantity || 0);
+            const del = Number(it.delivered_qty || 0);
+            const total = Number(it.total_price || 0);
+            o += qty; d += del; amt += total; damt += qty > 0 ? (del/qty)*total : 0;
+          }
+          const pctD = pct(d, o).toFixed(1) + '%';
+          const created = po.created_at ? new Date(po.created_at).toLocaleDateString() : '-';
+          const poRef = po.po_number || po.id;
+          const cmpName = po.company?.name || '-';
+          return `<tr class="border-b border-gray-800/50">
+            <td class="px-3 py-2 text-purple-300"><a href="/comparison?po_id=${po.id}" class="hover:underline">${poRef}</a></td>
+            <td class="px-3 py-2 text-white">${cmpName}</td>
+            <td class="px-3 py-2 text-gray-300">${created}</td>
+            <td class="px-3 py-2 text-right text-gray-200">${fmt(o)}</td>
+            <td class="px-3 py-2 text-right text-gray-200">${fmt(d)}</td>
+            <td class="px-3 py-2 text-right ${d/o>=0.8?'text-green-400':'text-yellow-400'}">${pctD}</td>
+            <td class="px-3 py-2 text-right text-gray-200">${fmt(Math.round(amt))}</td>
+          </tr>`;
+        }).join('');
+        ordersBody.innerHTML = rowsHtml || '<tr><td colspan="7" class="px-4 py-6 text-center text-gray-400">No data</td></tr>';
+      }
+
+      document.getElementById('exportDash')?.addEventListener('click', () => {
+        const csvRows = [];
+        csvRows.push(['Company','Requested Qty','Available Qty','Ordered Qty','Delivered Qty','Fill %','Delivery %'].join(','));
+        for (const [id, v] of byCompany.entries()) {
+          const f = pct(v.available, v.requested);
+          const d = pct(v.delivered, v.ordered);
+          csvRows.push([`"${v.name}"`, v.requested, v.available, v.ordered, v.delivered, f.toFixed(1), d.toFixed(1)].join(','));
+        }
+        const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = `comparison_${(dateFromEl?.value||'')}_${(dateToEl?.value||'')}.csv`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, { once: true });
+    }
+
+    document.getElementById('applyDash')?.addEventListener('click', (e) => { e.preventDefault(); applyFilters(); });
+    await applyFilters();
+  }
+
+  async function loadComparison(poId) {
+    const bodyEl = document.getElementById('compareBody');
+    const headerEl = document.getElementById('header');
+    if (!bodyEl || !headerEl) return;
+
+    if (!poId) {
+      bodyEl.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">Provide a PO via link or input to view comparison.</td></tr>';
+      headerEl.classList.add('hidden');
+      return;
+    }
+
+    // Header
+    let poDetail = null;
+    try {
+      const h = await fetch(`/api/purchase-orders?id=${poId}`);
+      if (h.ok) {
+        const json = await h.json();
+        const po = Array.isArray(json.data) ? json.data[0] : null;
+        poDetail = po;
+        if (po) {
+          const delivery = po.delivery_date ? new Date(po.delivery_date).toLocaleDateString() : '-';
+          const batchId = po.availability_order?.batch?.id || po.availability_order?.batch_id || po.batch_id || '';
+          const availabilityLink = batchId ? `<a href="/availability?batch_id=${batchId}" class="text-sm text-purple-400 hover:text-purple-300 ml-2">View Availability</a>` : '';
+          headerEl.innerHTML = `
+            <div class="flex items-center justify-between">
+              <div>
+                <div class="text-white font-mono">PO: ${po.po_number || po.id}</div>
+                <div class="text-gray-300 text-sm">Company: ${po.company?.name || '-'}</div>
+                <div class="text-gray-400 text-sm">Status: ${po.status.replace(/_/g, ' ')} · Delivery by: ${delivery}</div>
+              </div>
+              <div class="text-sm">${availabilityLink}</div>
+            </div>
+          `;
+          headerEl.classList.remove('hidden');
+        } else {
+          headerEl.classList.add('hidden');
+        }
+      }
+    } catch (_) {}
+
+    // Items
+    bodyEl.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">Loading...</td></tr>';
+    try {
+      const r = await fetch(`/api/purchase-orders?id=${poId}&items=true`);
+      if (!r.ok) { bodyEl.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">Failed to load.</td></tr>'; return; }
+      const { data } = await r.json();
+      const items = Array.isArray(data) ? data : [];
+      if (items.length === 0) {
+        bodyEl.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">No items found.</td></tr>';
+        return;
+      }
+      const rows = items.map((it) => `
+        <tr class="border-b border-gray-800/50">
+          <td class="px-3 py-2 text-gray-100">${it.product?.title || it.product?.barcode || '-'}</td>
+          <td class="px-3 py-2 text-right text-gray-200">${it.order_item?.order_qty ?? '-'}</td>
+          <td class="px-3 py-2 text-right text-gray-200">${it.availability?.available_qty ?? '-'}</td>
+          <td class="px-3 py-2 text-right text-gray-200">${it.quantity}</td>
+          <td class="px-3 py-2 text-right text-gray-200">${it.delivered_qty ?? 0}</td>
+          <td class="px-3 py-2 text-gray-300">${it.availability?.comment ? String(it.availability.comment) : '-'}</td>
+          <td class="px-3 py-2 text-gray-300">${it.delivery_notes ? String(it.delivery_notes) : '-'}</td>
+        </tr>
+      `).join('');
+      bodyEl.innerHTML = rows;
+    } catch (e) {
+      bodyEl.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">Error loading comparison.</td></tr>';
+    }
+  }
+
+  document.getElementById('compareForm')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const poId = (document.getElementById('poIdInput') as HTMLInputElement)?.value?.trim();
+    if (poId) loadComparison(poId);
+  });
+
+  (function init() {
+    if (document.getElementById('adminDashboard')) {
+      loadDashboard();
+    }
+    const params = new URLSearchParams(window.location.search);
+    const poId = params.get('po_id') || '';
+    if (poId) {
+      (document.getElementById('poIdInput') as HTMLInputElement).value = poId;
+    }
+    loadComparison(poId);
+  })();
+</script>

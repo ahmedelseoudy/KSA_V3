@@ -5,6 +5,11 @@ import { createSupabaseServerClient } from '../../lib/supabase-server';
 const url = new URL(Astro.request.url);
 const token = url.searchParams.get('token') || '';
 
+// Always clear any existing auth cookies so setup happens in a clean (logged-out) state.
+// This prevents cases where an existing admin session leaks into the setup flow.
+Astro.cookies.delete('sb-access-token', { path: '/' });
+Astro.cookies.delete('sb-refresh-token', { path: '/' });
+
 let valid = false;
 let email = '';
 let errorMsg = '';

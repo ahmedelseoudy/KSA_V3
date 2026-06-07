@@ -81,6 +81,34 @@ export function purchaseOrderEmail(opts: {
   };
 }
 
+export function deliveryUpdateEmail(opts: {
+  company_name: string;
+  po_number: string;
+  delivered_count: number;
+  total_items: number;
+  portal_url: string;
+  is_complete: boolean;
+}): { subject: string; html: string } {
+  const subject = opts.is_complete
+    ? `Delivery completed for PO ${opts.po_number}`
+    : `Delivery update for PO ${opts.po_number}`;
+  return {
+    subject,
+    html: wrapper(`
+      <h2 style="margin:0 0 16px;">${opts.is_complete ? 'Delivery completed' : 'Delivery update'}</h2>
+      <p>Hello ${escapeHtml(opts.company_name)} team,</p>
+      <p>${opts.is_complete ? 'All items have been delivered for this purchase order.' : 'There has been an update to the delivery for this purchase order.'}</p>
+      <table style="width:100%; border-collapse:collapse; margin:16px 0;">
+        <tr><td style="padding:6px 0; color:#6b7280;">PO Number:</td><td style="padding:6px 0;"><strong>${escapeHtml(opts.po_number)}</strong></td></tr>
+        <tr><td style="padding:6px 0; color:#6b7280;">Delivered Items:</td><td style="padding:6px 0;">${opts.delivered_count} / ${opts.total_items}</td></tr>
+      </table>
+      <p style="margin:24px 0;">
+        <a href="${opts.portal_url}" style="${buttonStyles}">View delivery details</a>
+      </p>
+    `),
+  };
+}
+
 function escapeHtml(s: string): string {
   return String(s)
     .replace(/&/g, '&amp;')

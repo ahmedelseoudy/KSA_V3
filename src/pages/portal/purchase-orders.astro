@@ -36,13 +36,17 @@ if (!profile || profile.role !== 'company') {
       return;
     }
 
-    container.innerHTML = pos.map(po => `
+    container.innerHTML = pos.map(po => {
+      const delivery = po.delivery_date ? new Date(po.delivery_date).toLocaleDateString() : null;
+      const batchId = po.availability_order?.batch?.id || po.availability_order?.batch_id || po.batch_id || '';
+      const availabilityLink = batchId ? `<a href="/availability?batch_id=${batchId}" class="text-sm text-purple-400 hover:text-purple-300 ml-3">View Availability</a>` : '';
+      return `
       <div class="bg-gray-800 rounded-lg border border-gray-700 p-5">
         <div class="flex justify-between items-start mb-3">
           <div>
             <h3 class="text-lg font-semibold text-white">PO: ${po.po_number || 'N/A'}</h3>
             <p class="text-sm text-gray-400">${po.total_items} items · $${Number(po.total_amount || 0).toFixed(2)}</p>
-            <p class="text-xs text-gray-500 mt-1">Created: ${new Date(po.created_at).toLocaleDateString()}</p>
+            <p class="text-xs text-gray-500 mt-1">Created: ${new Date(po.created_at).toLocaleDateString()}${delivery ? ` · Delivery by: <span class=\"text-gray-300\">${delivery}</span>` : ''}${availabilityLink ? ` ${availabilityLink}` : ''}</p>
           </div>
           <div class="flex items-center gap-3">
             <span class="px-3 py-1 text-xs rounded-full ${
@@ -58,10 +62,14 @@ if (!profile || profile.role !== 'company') {
             ` : ''}
           </div>
         </div>
-        <button onclick="window.toggleItems('${po.id}')" class="text-sm text-purple-400 hover:text-purple-300 mt-2">View Items ▼</button>
+        <div class="flex items-center gap-4 mt-2">
+          <button onclick="window.toggleItems('${po.id}')" class="text-sm text-purple-400 hover:text-purple-300">View Items ▼</button>
+          <a href="/portal/deliveries?po_id=${po.id}" class="text-sm text-purple-400 hover:text-purple-300">Deliveries</a>
+          <a href="/portal/comparison?po_id=${po.id}" class="text-sm text-purple-400 hover:text-purple-300">Compare</a>
+        </div>
         <div id="items-${po.id}" class="hidden mt-4"></div>
       </div>
-    `).join('');
+    `}).join('');
   }
 
   (window as any).confirmPO = async (id: string) => {

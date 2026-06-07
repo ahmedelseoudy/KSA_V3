@@ -1,0 +1,130 @@
+---
+import Layout from '../../layouts/Layout.astro';
+
+const user = Astro.locals.user;
+const profile = (user as any)?.profile;
+
+if (!profile || profile.role !== 'company') {
+  return Astro.redirect('/dashboard');
+}
+---
+
+<Layout title="Comparison - Company Portal">
+  <div class="max-w-7xl mx-auto">
+    <h1 class="text-2xl font-bold text-white mb-6">Comparison</h1>
+
+    <div class="bg-gray-800 rounded-lg p-4 mb-6">
+      <form id="compareForm" class="flex items-end gap-4">
+        <div>
+          <label class="block text-sm text-gray-400 mb-1">Purchase Order</label>
+          <input id="poIdInput" type="text" placeholder="Enter PO ID or use link"
+                 class="w-80 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white" />
+        </div>
+        <button type="submit" class="px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700">Load</button>
+      </form>
+    </div>
+
+    <div id="header" class="bg-gray-800 rounded-lg p-4 border border-gray-700 mb-4 hidden"></div>
+
+    <div class="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-700/50">
+            <tr>
+              <th class="px-3 py-2 text-left text-gray-300">Product</th>
+              <th class="px-3 py-2 text-right text-gray-300">Requested</th>
+              <th class="px-3 py-2 text-right text-gray-300">Available</th>
+              <th class="px-3 py-2 text-right text-gray-300">Ordered</th>
+              <th class="px-3 py-2 text-right text-gray-300">Delivered</th>
+              <th class="px-3 py-2 text-left text-gray-300">Availability Notes</th>
+              <th class="px-3 py-2 text-left text-gray-300">Delivery Notes</th>
+            </tr>
+          </thead>
+          <tbody id="compareBody">
+            <tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">Provide a PO via link or input to view comparison.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  async function loadComparison(poId) {
+    const bodyEl = document.getElementById('compareBody');
+    const headerEl = document.getElementById('header');
+    if (!bodyEl || !headerEl) return;
+
+    if (!poId) {
+      bodyEl.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">Provide a PO via link or input to view comparison.</td></tr>';
+      headerEl.classList.add('hidden');
+      return;
+    }
+
+    // Header
+    try {
+      const h = await fetch(`/api/purchase-orders?id=${poId}`);
+      if (h.ok) {
+        const json = await h.json();
+        const po = Array.isArray(json.data) ? json.data[0] : null;
+        if (po) {
+          const delivery = po.delivery_date ? new Date(po.delivery_date).toLocaleDateString() : '-';
+          headerEl.innerHTML = `
+            <div class="flex items-center justify-between">
+              <div>
+                <div class="text-white font-mono">PO: ${po.po_number || po.id}</div>
+                <div class="text-gray-300 text-sm">Company: ${po.company?.name || '-'}</div>
+                <div class="text-gray-400 text-sm">Status: ${po.status.replace(/_/g, ' ')} · Delivery by: ${delivery}</div>
+              </div>
+            </div>
+          `;
+          headerEl.classList.remove('hidden');
+        } else {
+          headerEl.classList.add('hidden');
+        }
+      }
+    } catch (_) {}
+
+    // Items
+    bodyEl.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">Loading...</td></tr>';
+    try {
+      const r = await fetch(`/api/purchase-orders?id=${poId}&items=true`);
+      if (!r.ok) { bodyEl.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">Failed to load.</td></tr>'; return; }
+      const { data } = await r.json();
+      const items = Array.isArray(data) ? data : [];
+      if (items.length === 0) {
+        bodyEl.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">No items found.</td></tr>';
+        return;
+      }
+      const rows = items.map((it) => `
+        <tr class="border-b border-gray-800/50">
+          <td class="px-3 py-2 text-gray-100">${it.product?.title || it.product?.barcode || '-'}</td>
+          <td class="px-3 py-2 text-right text-gray-200">${it.order_item?.order_qty ?? '-'}</td>
+          <td class="px-3 py-2 text-right text-gray-200">${it.availability?.available_qty ?? '-'}</td>
+          <td class="px-3 py-2 text-right text-gray-200">${it.quantity}</td>
+          <td class="px-3 py-2 text-right text-gray-200">${it.delivered_qty ?? 0}</td>
+          <td class="px-3 py-2 text-gray-300">${it.availability?.comment ? String(it.availability.comment) : '-'}</td>
+          <td class="px-3 py-2 text-gray-300">${it.delivery_notes ? String(it.delivery_notes) : '-'}</td>
+        </tr>
+      `).join('');
+      bodyEl.innerHTML = rows;
+    } catch (e) {
+      bodyEl.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">Error loading comparison.</td></tr>';
+    }
+  }
+
+  document.getElementById('compareForm')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const poId = (document.getElementById('poIdInput') as HTMLInputElement)?.value?.trim();
+    if (poId) loadComparison(poId);
+  });
+
+  (function init() {
+    const params = new URLSearchParams(window.location.search);
+    const poId = params.get('po_id') || '';
+    if (poId) {
+      (document.getElementById('poIdInput') as HTMLInputElement).value = poId;
+    }
+    loadComparison(poId);
+  })();
+</script>

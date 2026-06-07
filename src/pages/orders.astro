@@ -90,6 +90,23 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
           <button id="tabMatched" onclick="window.switchTab('matched')" class="px-3 py-1 text-sm rounded-full bg-gray-700 text-gray-300 hover:bg-gray-600">Matched</button>
           <button id="tabMissing" onclick="window.switchTab('missing')" class="px-3 py-1 text-sm rounded-full bg-gray-700 text-gray-300 hover:bg-gray-600">Unmatched</button>
         </div>
+        <!-- Filters -->
+        <div class="flex flex-wrap items-center gap-3 mb-3">
+          <div class="flex items-center gap-2">
+            <label for="companyFilter" class="text-sm text-gray-400">Company</label>
+            <select id="companyFilter" class="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm min-w-[12rem]">
+              <option value="all">All companies</option>
+            </select>
+          </div>
+          <div class="flex items-center gap-2">
+            <label for="pnlFilter" class="text-sm text-gray-400">P&L</label>
+            <select id="pnlFilter" class="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+              <option value="all">All</option>
+              <option value="profit">Profit &gt; 0</option>
+              <option value="loss">Profit &lt; 0</option>
+            </select>
+          </div>
+        </div>
         <!-- Table -->
         <div class="overflow-auto flex-1">
           <table class="w-full text-sm">
@@ -108,6 +125,16 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
             <tbody id="batchDetailTableBody">
               <tr><td colspan="8" class="px-4 py-6 text-center text-gray-400">Loading...</td></tr>
             </tbody>
+            <tfoot id="batchDetailTableFoot" class="bg-gray-800/40">
+              <tr>
+                <td class="px-3 py-2 text-right text-gray-300" colspan="3">Totals</td>
+                <td class="px-3 py-2 text-right text-white" id="totalOrderQty">0</td>
+                <td class="px-3 py-2 text-right text-white" id="totalAmazonCost">$0.00</td>
+                <td class="px-3 py-2 text-right text-white" id="totalProviderCost">$0.00</td>
+                <td class="px-3 py-2 text-right text-white" id="totalProfitLoss">0.00</td>
+                <td class="px-3 py-2"></td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </div>
@@ -466,6 +493,8 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
   // ===== Batch Detail Modal =====
   let allBatchItems: any[] = [];
   let activeTab = 'all';
+  let companyFilter = 'all'; // company_id or 'all'
+  let pnlFilter: 'all' | 'profit' | 'loss' = 'all';
 
   (window as any).viewBatchItems = async (batchId: string, batchName: string) => {
     document.getElementById('batchDetailTitle')!.textContent = batchName || 'Batch Items';
@@ -481,7 +510,30 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
     const { data } = await resp.json();
     allBatchItems = data || [];
     activeTab = 'all';
-    window.switchTab('all');
+    // Build company filter options from loaded items
+    const select = document.getElementById('companyFilter') as HTMLSelectElement | null;
+    if (select) {
+      const options = new Map<string, string>();
+      for (const it of allBatchItems) {
+        if (it.company?.id && it.company?.name) options.set(it.company.id, it.company.name);
+      }
+      // Preserve current selection if still present; else reset to 'all'
+      const prev = companyFilter;
+      select.innerHTML = '<option value="all">All companies</option>' +
+        Array.from(options.entries()).sort((a,b)=>a[1].localeCompare(b[1]))
+          .map(([id,name]) => `<option value="${id}">${name}</option>`).join('');
+      if (prev !== 'all' && options.has(prev)) {
+        companyFilter = prev;
+        select.value = prev;
+      } else {
+        companyFilter = 'all';
+        select.value = 'all';
+      }
+    }
+    // Reset P&L filter
+    const pnlSel = document.getElementById('pnlFilter') as HTMLSelectElement | null;
+    if (pnlSel) { pnlFilter = 'all'; pnlSel.value = 'all'; }
+    (window as any).switchTab('all');
   };
 
   (window as any).switchTab = (tab: string) => {
@@ -495,9 +547,29 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
     renderBatchItems();
   };
 
+  // Filter listeners
+  document.getElementById('companyFilter')?.addEventListener('change', (e) => {
+    const sel = e.target as HTMLSelectElement;
+    companyFilter = sel.value || 'all';
+    renderBatchItems();
+  });
+  document.getElementById('pnlFilter')?.addEventListener('change', (e) => {
+    const sel = e.target as HTMLSelectElement;
+    pnlFilter = (sel.value as any) || 'all';
+    renderBatchItems();
+  });
+
   function renderBatchItems() {
-    const items = activeTab === 'all' ? allBatchItems
+    let items = activeTab === 'all' ? [...allBatchItems]
       : allBatchItems.filter(i => i.match_status === activeTab);
+    if (companyFilter !== 'all') {
+      items = items.filter(i => (i.company?.id || null) === companyFilter);
+    }
+    if (pnlFilter === 'profit') {
+      items = items.filter(i => Number(i.profit_loss) > 0);
+    } else if (pnlFilter === 'loss') {
+      items = items.filter(i => Number(i.profit_loss) < 0);
+    }
 
     const matched = allBatchItems.filter(i => i.match_status === 'matched').length;
     const missing = allBatchItems.filter(i => i.match_status === 'missing').length;
@@ -511,6 +583,11 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
     const tbody = document.getElementById('batchDetailTableBody')!;
     if (items.length === 0) {
       tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-6 text-center text-gray-400">No items in this view.</td></tr>';
+      // Reset totals footer
+      (document.getElementById('totalOrderQty') as HTMLElement).textContent = '0';
+      (document.getElementById('totalAmazonCost') as HTMLElement).textContent = '$0.00';
+      (document.getElementById('totalProviderCost') as HTMLElement).textContent = '$0.00';
+      (document.getElementById('totalProfitLoss') as HTMLElement).textContent = '0.00';
       return;
     }
 
@@ -532,6 +609,17 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
         </td>
       </tr>
     `).join('');
+
+    // Totals for the current filtered view
+    const sum = (fn: (i: any) => number) => items.reduce((s: number, i: any) => s + (fn(i) || 0), 0);
+    const tOrder = sum(i => Number(i.order_qty));
+    const tAmazon = sum(i => Number(i.amazon_cost));
+    const tProvider = sum(i => Number(i.provider_cost));
+    const tPL = sum(i => Number(i.profit_loss));
+    (document.getElementById('totalOrderQty') as HTMLElement).textContent = String(tOrder);
+    (document.getElementById('totalAmazonCost') as HTMLElement).textContent = `$${tAmazon.toFixed(2)}`;
+    (document.getElementById('totalProviderCost') as HTMLElement).textContent = `$${tProvider.toFixed(2)}`;
+    (document.getElementById('totalProfitLoss') as HTMLElement).textContent = `${tPL.toFixed(2)}`;
   }
 
   document.getElementById('closeBatchDetail')?.addEventListener('click', () => {

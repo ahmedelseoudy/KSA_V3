@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { createAuthenticatedClient } from '../../lib/supabase-server';
 import { sendAvailabilityRequestEmail } from '../../lib/notifications';
+import { sendEmail, PUBLIC_APP_URL } from '../../lib/email';
 
 // GET: List availability orders (admin) or own (company)
 export const GET: APIRoute = async ({ request, cookies }) => {
@@ -236,6 +237,34 @@ export const POST: APIRoute = async ({ request, cookies }) => {
           responded_at: status === 'responded' ? new Date().toISOString() : null,
         })
         .eq('id', body.availability_order_id);
+
+      // Optional: notify super admin by email when a company submits responses
+      try {
+        const adminEmail = (import.meta as any).env?.ADMIN_NOTIFY_EMAIL as string | undefined;
+        if (adminEmail) {
+          const { data: aoRow } = await supabase
+            .from('availability_orders')
+            .select('id, batch_id, company:companies(name)')
+            .eq('id', body.availability_order_id)
+            .single();
+          const companyName = (aoRow as any)?.company?.name || 'Unknown Company';
+          const url = `${PUBLIC_APP_URL}/availability?batch_id=${(aoRow as any)?.batch_id || ''}`;
+          const subject = `[KSA CRM] Availability submitted by ${companyName} (${available}/${total} available)`;
+          const html = `
+            <p>Company <strong>${companyName}</strong> submitted availability.</p>
+            <p>
+              Available: <strong>${available}</strong> ·
+              Unavailable: <strong>${unavailable}</strong> ·
+              Total lines: <strong>${total}</strong> ·
+              Status: <strong>${status.replace(/_/g, ' ')}</strong>
+            </p>
+            <p><a href="${url}">View in dashboard</a></p>
+          `;
+          await sendEmail({ to: adminEmail, subject, html });
+        }
+      } catch (e) {
+        // swallow notification errors; do not block API success
+      }
     }
 
     return new Response(JSON.stringify({ updated }), {

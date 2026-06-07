@@ -1,5 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import PageHeader from '../components/ui/PageHeader.astro';
+import StatCard from '../components/ui/StatCard.astro';
 
 const user = Astro.locals.user;
 const profile = (user as any)?.profile;
@@ -11,26 +13,14 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
 
 <Layout title="Availability Overview - KSA CRM">
   <div class="max-w-7xl mx-auto">
-    <h1 class="text-2xl font-bold text-white mb-6">Availability Overview</h1>
+    <PageHeader title="Availability Overview" />
 
     <!-- Summary Cards -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6" id="summaryCards">
-      <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
-        <p class="text-gray-400 text-sm">Total Requests</p>
-        <p class="text-2xl font-bold text-white" id="totalRequests">-</p>
-      </div>
-      <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
-        <p class="text-gray-400 text-sm">Fully Responded</p>
-        <p class="text-2xl font-bold text-green-400" id="fullResponded">-</p>
-      </div>
-      <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
-        <p class="text-gray-400 text-sm">Pending</p>
-        <p class="text-2xl font-bold text-yellow-400" id="pending">-</p>
-      </div>
-      <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
-        <p class="text-gray-400 text-sm">Unavailable Items</p>
-        <p class="text-2xl font-bold text-red-400" id="unavailableCount">-</p>
-      </div>
+      <StatCard label="Total Requests" valueId="totalRequests" />
+      <StatCard label="Fully Responded" valueId="fullResponded" valueClass="text-green-400" />
+      <StatCard label="Pending" valueId="pending" valueClass="text-yellow-400" />
+      <StatCard label="Unavailable Items" valueId="unavailableCount" valueClass="text-red-400" />
     </div>
 
     <!-- Company Breakdown -->
@@ -38,27 +28,84 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
       <div class="p-4 border-b border-gray-700">
         <h2 class="text-lg font-semibold text-white">Company Responses</h2>
       </div>
+      <!-- Filters -->
+      <div class="px-4 py-3 border-b border-gray-700 flex flex-wrap items-center gap-3 sticky top-0 z-10 bg-gray-800/95 backdrop-blur supports-[backdrop-filter]:bg-gray-800/80">
+        <div class="flex items-center gap-2">
+          <label for="availCompanyFilter" class="text-sm text-gray-400">Company</label>
+          <select id="availCompanyFilter" class="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm min-w-[12rem]">
+            <option value="all">All companies</option>
+          </select>
+        </div>
+        <div class="flex items-center gap-2">
+          <label for="availStatusFilter" class="text-sm text-gray-400">Status</label>
+          <select id="availStatusFilter" class="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+            <option value="all">All</option>
+            <option value="responded">Responded</option>
+            <option value="partially_responded">Partially responded</option>
+            <option value="pending">Pending</option>
+          </select>
+        </div>
+        <div class="ml-auto flex flex-wrap items-end gap-3">
+          <div>
+            <label class="block text-sm text-gray-400 mb-1">Batch</label>
+            <select id="batchSelect" class="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm min-w-[14rem]">
+              <option value="">Select a batch…</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm text-gray-400 mb-1">PO Reference</label>
+            <input id="poNumberInput" type="text" placeholder="Auto from availability name (optional)" class="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm min-w-[14rem]" />
+          </div>
+          <div>
+            <label class="block text-sm text-gray-400 mb-1">Delivery Date</label>
+            <input id="poDateInput" type="date" class="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm min-w-[12rem]" />
+          </div>
+          <label class="inline-flex items-center gap-2 text-sm text-gray-300">
+            <input id="includePartialChk" type="checkbox" class="accent-purple-600" /> Include partially responded
+          </label>
+          <button id="generatePOsBtn" class="px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50" disabled>
+            Generate POs
+          </button>
+        </div>
+      </div>
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
-          <thead class="bg-gray-700/50">
+          <thead class="bg-gray-700/50 sticky top-0 z-10">
             <tr>
-              <th class="px-4 py-3 text-left text-gray-300">Company</th>
-              <th class="px-4 py-3 text-right text-gray-300">Total Items</th>
-              <th class="px-4 py-3 text-right text-gray-300">Available</th>
-              <th class="px-4 py-3 text-right text-gray-300">Unavailable</th>
-              <th class="px-4 py-3 text-right text-gray-300">Rate</th>
-              <th class="px-4 py-3 text-center text-gray-300">Status</th>
+              <th class="px-3 py-3 text-left text-gray-300 w-8"></th>
+              <th data-avsort="company" class="px-4 py-3 text-left text-gray-300 cursor-pointer select-none">Company <span class="text-gray-400 sort" data-key="company"></span></th>
+              <th data-avsort="total_items" class="px-4 py-3 text-right text-gray-300 cursor-pointer select-none">Total Items <span class="text-gray-400 sort" data-key="total_items"></span></th>
+              <th data-avsort="available_count" class="px-4 py-3 text-right text-gray-300 cursor-pointer select-none">Available <span class="text-gray-400 sort" data-key="available_count"></span></th>
+              <th data-avsort="unavailable_count" class="px-4 py-3 text-right text-gray-300 cursor-pointer select-none">Unavailable <span class="text-gray-400 sort" data-key="unavailable_count"></span></th>
+              <th data-avsort="rate" class="px-4 py-3 text-right text-gray-300 cursor-pointer select-none">Rate <span class="text-gray-400 sort" data-key="rate"></span></th>
+              <th data-avsort="status" class="px-4 py-3 text-center text-gray-300 cursor-pointer select-none">Status <span class="text-gray-400 sort" data-key="status"></span></th>
             </tr>
           </thead>
           <tbody id="companyTable">
-            <tr><td colspan="6" class="px-4 py-6 text-center text-gray-400">Loading...</td></tr>
+            <tr><td colspan="7" class="px-4 py-6 text-center text-gray-400">Loading...</td></tr>
           </tbody>
         </table>
+      </div>
+      <div class="flex flex-col md:flex-row items-center justify-between gap-3 p-3 border-t border-gray-700 bg-gray-800/80">
+        <div class="flex items-center gap-2 text-sm text-gray-300">
+          <label for="avPageSize">Rows per page</label>
+          <select id="avPageSize" class="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+            <option value="10">10</option>
+            <option value="20" selected>20</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="avPrev" class="px-3 py-1.5 bg-gray-700 text-white rounded disabled:opacity-50">Prev</button>
+          <span id="avPageInfo" class="text-sm text-gray-300">-</span>
+          <button id="avNext" class="px-3 py-1.5 bg-gray-700 text-white rounded disabled:opacity-50">Next</button>
+        </div>
       </div>
     </div>
 
     <!-- Unavailable Items (cross-company) -->
-    <div class="bg-gray-800 rounded-lg border border-gray-700">
+    <div id="unavailableSection" class="bg-gray-800 rounded-lg border border-gray-700">
       <div class="p-4 border-b border-gray-700 flex justify-between items-center">
         <h2 class="text-lg font-semibold text-white">Unavailable Items Summary</h2>
         <button id="downloadUnavailable" class="px-3 py-1.5 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 disabled:opacity-50" disabled>
@@ -90,6 +137,20 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
   import * as XLSX from 'xlsx';
 
   let unavailableData: any[] = [];
+  let allAvailOrders: any[] = [];
+  let availCompanyFilter = 'all';
+  let availStatusFilter = 'all';
+  let allBatches: any[] = [];
+  const urlParams = new URLSearchParams(window.location.search);
+  const forcedBatchId = urlParams.get('batch_id') || '';
+
+  function getFilteredOrders() {
+    let rows = [...allAvailOrders];
+    if (forcedBatchId) rows = rows.filter((o: any) => (o.batch_id || '') === forcedBatchId);
+    if (availCompanyFilter !== 'all') rows = rows.filter((o: any) => (o.company?.id || null) === availCompanyFilter);
+    if (availStatusFilter !== 'all') rows = rows.filter((o: any) => o.status === availStatusFilter);
+    return rows;
+  }
 
   async function loadAvailabilityData() {
     const resp = await fetch('/api/availability');
@@ -97,6 +158,7 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
     const { data } = await resp.json();
     
     const orders = data || [];
+    allAvailOrders = orders;
     const total = orders.length;
     const responded = orders.filter((o: any) => o.status === 'responded').length;
     const pending = orders.filter((o: any) => o.status === 'pending' || o.status === 'partially_responded').length;
@@ -105,39 +167,351 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
     document.getElementById('fullResponded')!.textContent = String(responded);
     document.getElementById('pending')!.textContent = String(pending);
 
-    // Render company table
-    const tbody = document.getElementById('companyTable');
-    if (tbody) {
-      if (orders.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-6 text-center text-gray-400">No availability orders yet.</td></tr>';
-      } else {
-        tbody.innerHTML = orders.map((o: any) => {
-          const rate = o.total_items > 0 ? ((o.available_count / o.total_items) * 100).toFixed(0) : '0';
-          return `
-            <tr class="border-b border-gray-700/50">
-              <td class="px-4 py-3 text-white">${o.company?.name || 'Unknown'}</td>
-              <td class="px-4 py-3 text-right text-white">${o.total_items}</td>
-              <td class="px-4 py-3 text-right text-green-400">${o.available_count || 0}</td>
-              <td class="px-4 py-3 text-right text-red-400">${o.unavailable_count || 0}</td>
-              <td class="px-4 py-3 text-right text-white">${rate}%</td>
-              <td class="px-4 py-3 text-center">
-                <span class="px-2 py-0.5 text-xs rounded-full ${
-                  o.status === 'responded' ? 'bg-green-900/30 text-green-300' :
-                  o.status === 'partially_responded' ? 'bg-yellow-900/30 text-yellow-300' :
-                  'bg-gray-700 text-gray-400'
-                }">${o.status.replace(/_/g, ' ')}</span>
-              </td>
-            </tr>
-          `;
-        }).join('');
+    // Build company filter options
+    const sel = document.getElementById('availCompanyFilter');
+    if (sel) {
+      const opts = new Map();
+      for (const o of orders) {
+        const id = o.company?.id; const nm = o.company?.name;
+        if (id && nm) opts.set(id, nm);
       }
+      const prev = availCompanyFilter;
+      sel.innerHTML = '<option value="all">All companies</option>' +
+        Array.from(opts.entries()).sort((a,b)=>a[1].localeCompare(b[1]))
+          .map(([id,name]) => `<option value="${id}">${name}</option>`).join('');
+      if (prev !== 'all' && opts.has(prev)) { (sel as HTMLSelectElement).value = prev; }
     }
 
-    // Load unavailable items per availability order
-    await loadUnavailableItems(orders);
+    renderCompanyTable();
+
+    // Load unavailable items summary using current filters
+    await loadUnavailableItems(getFilteredOrders());
   }
 
+  async function loadBatches() {
+    const resp = await fetch('/api/orders?limit=200');
+    if (!resp.ok) return;
+    const { data } = await resp.json();
+    allBatches = data || [];
+    const sel = document.getElementById('batchSelect') as HTMLSelectElement | null;
+    if (!sel) return;
+    sel.innerHTML = '<option value="">Select a batch…</option>' +
+      allBatches.map((b: any) => `<option value="${b.id}">${b.name || b.id}</option>`).join('');
+    updateGenerateBtnState();
+  }
+
+  function updateGenerateBtnState() {
+    const batchId = (document.getElementById('batchSelect') as HTMLSelectElement)?.value || '';
+    const btn = document.getElementById('generatePOsBtn') as HTMLButtonElement | null;
+    if (btn) btn.disabled = !batchId;
+  }
+
+  function renderCompanyTable() {
+    // Initialize state and re-render using sorting+paging
+    (window as any).__AV_STATE__ = (window as any).__AV_STATE__ || { sortKey: 'company', sortDir: 'asc', page: 1, pageSize: 20 };
+    applyAvSortingPaging();
+  }
+
+  function renderCompanyTableRows(rows: any[]) {
+    const tbody = document.getElementById('companyTable');
+    if (!tbody) return;
+    if (!rows || rows.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-6 text-center text-gray-400">No availability orders yet.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map((o: any) => {
+      const rate = o.total_items > 0 ? ((o.available_count / o.total_items) * 100).toFixed(0) : '0';
+      return `
+        <tr class="border-b border-gray-700/50 group" data-row="${o.id}">
+          <td class="px-3 py-3 align-top">
+            <button class="expand-btn w-6 h-6 flex items-center justify-center rounded bg-gray-700 hover:bg-gray-600 text-white text-xs" aria-expanded="false" aria-controls="details-${o.id}" data-id="${o.id}">+</button>
+          </td>
+          <td class="px-4 py-3 text-white">${o.company?.name || 'Unknown'}</td>
+          <td class="px-4 py-3 text-right text-white">${o.total_items}</td>
+          <td class="px-4 py-3 text-right text-green-400">${o.available_count || 0}</td>
+          <td class="px-4 py-3 text-right text-red-400">${o.unavailable_count || 0}</td>
+          <td class="px-4 py-3 text-right text-white">${rate}%</td>
+          <td class="px-4 py-3 text-center">
+            <span class="px-2 py-0.5 text-xs rounded-full ${
+              o.status === 'responded' ? 'bg-green-900/30 text-green-300' :
+              o.status === 'partially_responded' ? 'bg-yellow-900/30 text-yellow-300' :
+              'bg-gray-700 text-gray-400'
+            }">${o.status.replace(/_/g, ' ')}</span>
+          </td>
+        </tr>
+        <tr id="details-${o.id}" class="hidden border-b border-gray-800/50 bg-gray-900/40" data-loaded="false">
+          <td></td>
+          <td class="px-4 py-3" colspan="6">
+            <div class="text-gray-400 text-sm" id="details-content-${o.id}">Loading details...</div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    // Attach expand/collapse handlers
+    const btns = tbody.querySelectorAll('.expand-btn');
+    btns.forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const id = (e.currentTarget as HTMLElement).getAttribute('data-id')!;
+        const row = document.getElementById(`details-${id}`)!;
+        const btnEl = e.currentTarget as HTMLButtonElement;
+        const expanded = btnEl.getAttribute('aria-expanded') === 'true';
+        if (expanded) {
+          btnEl.setAttribute('aria-expanded', 'false');
+          btnEl.textContent = '+';
+          row.classList.add('hidden');
+          return;
+        }
+
+        btnEl.setAttribute('aria-expanded', 'true');
+        btnEl.textContent = '−';
+        row.classList.remove('hidden');
+
+        if (row.getAttribute('data-loaded') !== 'true') {
+          await loadCompanyDetails(id);
+          row.setAttribute('data-loaded', 'true');
+        }
+      });
+    });
+  }
+
+  function avGetSortValue(o: any, key: string) {
+    switch (key) {
+      case 'company': return (o.company?.name || '').toString();
+      case 'total_items': return Number(o.total_items || 0);
+      case 'available_count': return Number(o.available_count || 0);
+      case 'unavailable_count': return Number(o.unavailable_count || 0);
+      case 'rate': {
+        const t = Number(o.total_items || 0); const a = Number(o.available_count || 0);
+        return t > 0 ? (a / t) : 0;
+      }
+      case 'status': return (o.status || '').toString();
+      default: return '';
+    }
+  }
+
+  function applyAvSortingPaging() {
+    const st = (window as any).__AV_STATE__ || ((window as any).__AV_STATE__ = { sortKey: 'company', sortDir: 'asc', page: 1, pageSize: 20 });
+    const { sortKey, sortDir, page, pageSize } = st;
+    // Update header indicators based on current sort state
+    document.querySelectorAll('thead .sort').forEach((el) => (el.textContent = ''));
+    const cur = document.querySelector(`thead .sort[data-key="${sortKey}"]`);
+    if (cur) cur.textContent = sortDir === 'asc' ? '▲' : '▼';
+    let rows = getFilteredOrders();
+    const sorted = [...rows].sort((a: any, b: any) => {
+      const va = avGetSortValue(a, sortKey); const vb = avGetSortValue(b, sortKey);
+      if (va < vb) return sortDir === 'asc' ? -1 : 1;
+      if (va > vb) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+    const start = (page - 1) * pageSize;
+    const pageRows = sorted.slice(start, start + pageSize);
+    renderCompanyTableRows(pageRows);
+    const total = sorted.length;
+    const pageCount = Math.max(1, Math.ceil(total / pageSize));
+    const info = document.getElementById('avPageInfo');
+    if (info) info.textContent = `Page ${page} of ${pageCount}`;
+    const prev = document.getElementById('avPrev') as HTMLButtonElement | null;
+    const next = document.getElementById('avNext') as HTMLButtonElement | null;
+    if (prev) prev.disabled = page <= 1;
+    if (next) next.disabled = page >= pageCount;
+  }
+
+  function avWireSortHandlers() {
+    const headers = document.querySelectorAll('th[data-avsort]');
+    headers.forEach((th) => {
+      th.addEventListener('click', () => {
+        const key = th.getAttribute('data-avsort') || 'company';
+        const st = (window as any).__AV_STATE__ || ((window as any).__AV_STATE__ = { sortKey: 'company', sortDir: 'asc', page: 1, pageSize: 20 });
+        if (st.sortKey === key) {
+          st.sortDir = st.sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+          st.sortKey = key; st.sortDir = 'asc';
+        }
+        st.page = 1;
+        document.querySelectorAll('thead .sort').forEach((el) => (el.textContent = ''));
+        const span = document.querySelector(`thead .sort[data-key="${key}"]`);
+        if (span) span.textContent = st.sortDir === 'asc' ? '▲' : '▼';
+        applyAvSortingPaging();
+      });
+    });
+  }
+
+  function avWirePagingHandlers() {
+    const prev = document.getElementById('avPrev');
+    const next = document.getElementById('avNext');
+    const size = document.getElementById('avPageSize') as HTMLSelectElement | null;
+    prev?.addEventListener('click', () => { const st = (window as any).__AV_STATE__; st.page = Math.max(1, st.page - 1); applyAvSortingPaging(); });
+    next?.addEventListener('click', () => { const st = (window as any).__AV_STATE__; st.page = st.page + 1; applyAvSortingPaging(); });
+    size?.addEventListener('change', () => { const st = (window as any).__AV_STATE__; st.pageSize = Number(size.value || '20') || 20; st.page = 1; applyAvSortingPaging(); });
+  }
+
+  async function loadCompanyDetails(availabilityOrderId: string) {
+    const target = document.getElementById(`details-content-${availabilityOrderId}`);
+    if (!target) return;
+    try {
+      const resp = await fetch(`/api/availability?id=${availabilityOrderId}`);
+      if (!resp.ok) { target.textContent = 'Failed to load details.'; return; }
+      const { data } = await resp.json();
+      const items = Array.isArray(data) ? data : [];
+      const available = items.filter((r: any) => r.is_available === true);
+      const unavailable = items.filter((r: any) => r.is_available === false);
+
+      const today = new Date().toISOString().slice(0,10);
+      const actionBar = `
+        <div class="flex items-end gap-3 mb-3">
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">PO Reference</label>
+            <input id="poInput-${availabilityOrderId}" type="text" placeholder="Auto from availability name (optional)" class="px-2 py-1 bg-gray-800 border border-gray-700 rounded text-white text-xs min-w-[14rem]" />
+          </div>
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">Delivery Date</label>
+            <input id="poDate-${availabilityOrderId}" type="date" value="${today}" class="px-2 py-1 bg-gray-800 border border-gray-700 rounded text-white text-xs min-w-[12rem]" />
+          </div>
+          <button id="poBtn-${availabilityOrderId}" class="px-2.5 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs">Create PO from available</button>
+          <span class="text-xs text-gray-500">Only items marked available will be included.</span>
+        </div>
+      `;
+
+      const renderItemRow = (r: any) => {
+        const it = r.order_item || {};
+        const qty = typeof it.order_qty === 'number' ? it.order_qty : (it.order_qty || '');
+        const boxes = typeof it.boxes === 'number' ? it.boxes : (it.boxes || '');
+        const cost = typeof it.provider_cost === 'number' ? it.provider_cost : (it.provider_cost || '');
+        return `
+          <tr class="border-b border-gray-800/50">
+            <td class="px-3 py-2 font-mono text-xs text-gray-200">${it.barcode || '-'}</td>
+            <td class="px-3 py-2 text-gray-100">${it.title || '-'}</td>
+            <td class="px-3 py-2 text-gray-300">${it.asin || '-'}</td>
+            <td class="px-3 py-2 text-right text-gray-200">${qty || '-'}</td>
+            <td class="px-3 py-2 text-right text-gray-200">${boxes || '-'}</td>
+            <td class="px-3 py-2 text-right text-gray-200">${cost || '-'}</td>
+            <td class="px-3 py-2 text-gray-300">${r.comment ? String(r.comment) : '-'}</td>
+          </tr>
+        `;
+      };
+
+      const section = (title: string, arr: any[]) => `
+        <div class="mb-4">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-white font-semibold">${title} <span class="text-xs text-gray-400">(${arr.length})</span></h3>
+          </div>
+          ${arr.length === 0 ? '<div class="text-sm text-gray-500">No items.</div>' : `
+            <div class="overflow-x-auto">
+              <table class="w-full text-xs">
+                <thead class="bg-gray-800/60">
+                  <tr>
+                    <th class="px-3 py-2 text-left text-gray-300">Barcode</th>
+                    <th class="px-3 py-2 text-left text-gray-300">Title</th>
+                    <th class="px-3 py-2 text-left text-gray-300">ASIN</th>
+                    <th class="px-3 py-2 text-right text-gray-300">Order Qty</th>
+                    <th class="px-3 py-2 text-right text-gray-300">Boxes</th>
+                    <th class="px-3 py-2 text-right text-gray-300">Provider Cost</th>
+                    <th class="px-3 py-2 text-left text-gray-300">Comment</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${arr.map(renderItemRow).join('')}
+                </tbody>
+              </table>
+            </div>
+          `}
+        </div>
+      `;
+
+      target.innerHTML = `
+        ${actionBar}
+        ${section('Available Items', available)}
+        ${section('Unavailable Items', unavailable)}
+      `;
+
+      const poBtn = document.getElementById(`poBtn-${availabilityOrderId}`) as HTMLButtonElement | null;
+      const poInp = document.getElementById(`poInput-${availabilityOrderId}`) as HTMLInputElement | null;
+      const poDate = document.getElementById(`poDate-${availabilityOrderId}`) as HTMLInputElement | null;
+      poBtn?.addEventListener('click', async () => {
+        const poRef = (poInp?.value || '').trim();
+        const deliveryDate = (poDate?.value || '').trim();
+        try {
+          const res = await fetch('/api/purchase-orders', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'generate', availability_order_ids: [availabilityOrderId], po_number: poRef || undefined, delivery_date: deliveryDate || undefined })
+          });
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(json.error || 'Failed to create PO');
+          alert('PO created and email sent (if configured). View it in Purchase Orders.');
+        } catch (e: any) {
+          alert('Error: ' + ((e && e.message) || 'Failed to create PO'));
+        }
+      });
+    } catch (e: any) {
+      target.textContent = 'Error loading details.';
+    }
+  }
+
+  // Filter listeners
+  document.getElementById('availCompanyFilter')?.addEventListener('change', async (e) => {
+    const v = (e.target as HTMLSelectElement).value || 'all';
+    availCompanyFilter = v;
+    // Re-render via sorting+paging pipeline
+    const st = (window as any).__AV_STATE__ || ((window as any).__AV_STATE__ = { sortKey: 'company', sortDir: 'asc', page: 1, pageSize: 20 });
+    st.page = 1;
+    applyAvSortingPaging();
+    await loadUnavailableItems(getFilteredOrders());
+  });
+  document.getElementById('availStatusFilter')?.addEventListener('change', async (e) => {
+    const v = (e.target as HTMLSelectElement).value || 'all';
+    availStatusFilter = v;
+    const st = (window as any).__AV_STATE__ || ((window as any).__AV_STATE__ = { sortKey: 'company', sortDir: 'asc', page: 1, pageSize: 20 });
+    st.page = 1;
+    applyAvSortingPaging();
+    await loadUnavailableItems(getFilteredOrders());
+  });
+
+  // Batch-level Generate POs
+  document.getElementById('batchSelect')?.addEventListener('change', updateGenerateBtnState);
+  document.getElementById('poNumberInput')?.addEventListener('input', updateGenerateBtnState);
+  document.getElementById('generatePOsBtn')?.addEventListener('click', async () => {
+    const batchId = (document.getElementById('batchSelect') as HTMLSelectElement)?.value || '';
+    const poNum = (document.getElementById('poNumberInput') as HTMLInputElement)?.value?.trim() || '';
+    const poDate = (document.getElementById('poDateInput') as HTMLInputElement)?.value?.trim() || '';
+    const includePartial = (document.getElementById('includePartialChk') as HTMLInputElement)?.checked || false;
+    if (!batchId) return;
+    try {
+      const res = await fetch('/api/purchase-orders', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'generate', batch_id: batchId, po_number: poNum || undefined, include_partial: includePartial, delivery_date: poDate || undefined })
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'Failed to generate POs');
+      alert(`Created ${json.created || 0} PO(s). Emails sent: ${json.emails_sent || 0}.`);
+    } catch (e: any) {
+      alert('Error: ' + ((e && e.message) || 'Failed to generate POs'));
+    }
+  });
+
   async function loadUnavailableItems(orders: any[]) {
+    const section = document.getElementById('unavailableSection');
+    const tbody = document.getElementById('unavailableTable');
+    const countEl = document.getElementById('unavailableCount');
+    const downloadBtn = document.getElementById('downloadUnavailable') as HTMLButtonElement | null;
+
+    // Decide visibility based on filters and orders
+    const showSummary = (
+      availCompanyFilter === 'all' ||
+      availStatusFilter === 'responded' ||
+      (availCompanyFilter !== 'all' && Array.isArray(orders) && orders.length > 0 && orders.every((o: any) => o.status === 'responded'))
+    );
+
+    if (!showSummary) {
+      section?.classList.add('hidden');
+      if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-6 text-center text-gray-400">Unavailable summary hidden for current filters</td></tr>';
+      if (countEl) countEl.textContent = '0';
+      if (downloadBtn) downloadBtn.disabled = true;
+      return;
+    }
+
+    section?.classList.remove('hidden');
     unavailableData = [];
     const itemMap = new Map<string, any>();
 
@@ -189,9 +563,8 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
     // Filter to only items with at least one unavailable
     unavailableData = Array.from(itemMap.values()).filter(i => i.companies_unavailable.length > 0);
     
-    document.getElementById('unavailableCount')!.textContent = String(unavailableData.length);
+    if (countEl) countEl.textContent = String(unavailableData.length);
 
-    const tbody = document.getElementById('unavailableTable');
     if (tbody) {
       if (unavailableData.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-6 text-center text-gray-400">No unavailable items found.</td></tr>';
@@ -213,7 +586,7 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
         }).join('');
       }
 
-      (document.getElementById('downloadUnavailable') as HTMLButtonElement).disabled = unavailableData.length === 0;
+      if (downloadBtn) downloadBtn.disabled = unavailableData.length === 0;
     }
   }
 
@@ -274,5 +647,7 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
     XLSX.writeFile(wb, `Unavailable_Items_${new Date().toISOString().split('T')[0]}.xlsx`);
   });
 
-  loadAvailabilityData();
+  // Wire sorting/paging once DOM is ready
+  document.addEventListener('DOMContentLoaded', () => { avWireSortHandlers(); avWirePagingHandlers(); });
+  loadBatches().finally(loadAvailabilityData);
 </script>

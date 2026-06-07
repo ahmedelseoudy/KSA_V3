@@ -14,7 +14,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     .eq('id', user.id)
     .single();
 
-  if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
+  if (!profile || profile.role !== 'super_admin') {
     return new Response('Forbidden', { status: 403 });
   }
 
@@ -58,7 +58,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
   const emailResp = await sendEmail({ to: allRecipients, subject, html });
 
-  return new Response(JSON.stringify({ sent: emailResp.ok, error: emailResp.error }), {
+  return new Response(JSON.stringify({ sent: emailResp.ok, error: emailResp.error, setup_url: setupUrl }), {
     headers: { 'Content-Type': 'application/json' },
   });
 };

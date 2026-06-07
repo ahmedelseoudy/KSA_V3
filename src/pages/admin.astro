@@ -435,9 +435,9 @@ const isSuper = profile.role === 'super_admin';
 
   document.getElementById('refreshDataButton')?.addEventListener('click', loadUsers);
 
-  document.getElementById('inviteUserButton')?.addEventListener('click', () => {
-    inviteModal.classList.remove('hidden');
-    inviteEmail.focus();
+  document.getElementById('inviteUserButton')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    window.location.href = '/admin/invite';
   });
 
   document.getElementById('cancelInvite')?.addEventListener('click', () => {
