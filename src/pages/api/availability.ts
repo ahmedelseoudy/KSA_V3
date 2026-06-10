@@ -21,6 +21,25 @@ export const GET: APIRoute = async ({ request, cookies }) => {
 
   // If requesting responses for a specific availability order
   if (availability_order_id) {
+    // Company users may only access availability orders that belong to their own company
+    if (profile?.role === 'company') {
+      const { data: company } = await supabase
+        .from('companies')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      const { data: avOrder } = await supabase
+        .from('availability_orders')
+        .select('company_id')
+        .eq('id', availability_order_id)
+        .single();
+
+      if (!company || !avOrder || avOrder.company_id !== company.id) {
+        return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
+      }
+    }
+
     const { data, error } = await supabase
       .from('availability_responses')
       .select('*, order_item:order_items(id, barcode, asin, title, order_qty, boxes, provider_cost)')

@@ -1,12 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL || 'https://cbhllxodkfmtgfzeejka.supabase.co';
-const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNiaGxseG9ka2ZtdGdmemVlamthIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3ODI0MzIsImV4cCI6MjA5NTM1ODQzMn0.Wp9416pCpPvA6sZd7DvMvWUGJpkhIyOJmQ2pfZgw3wU';
+const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
 const supabaseServiceKey = import.meta.env.SUPABASE_SERVICE_ROLE_KEY;
 
-// Fallback values for build time - these are public keys so it's safe
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('Using fallback Supabase configuration');
+  throw new Error('Missing PUBLIC_SUPABASE_URL or PUBLIC_SUPABASE_ANON_KEY environment variables');
 }
 
 // Client for browser-side operations (with RLS)

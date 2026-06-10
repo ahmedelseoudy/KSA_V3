@@ -272,7 +272,7 @@ cat database-schema.sql
 supabase db push
 ```
 
-Then create the super-admin user in **Authentication → Users → Invite user** (or via the `fix-rls.sql` script included in the repo).
+Then create the super-admin user in **Authentication → Users → Invite user**.
 
 ---
 
@@ -281,6 +281,44 @@ Then create the super-admin user in **Authentication → Users → Invite user**
 - `SUPABASE_SERVICE_ROLE_KEY` is only used server-side in `/api/*` endpoints — never exposed to the browser.
 - All client reads go through Supabase RLS policies.
 - Row Level Security is enabled on every table (see `database-schema.sql`).
+- Internal `SECURITY DEFINER` functions are not executable by the `anon` role (see `supabase/migrations/002_harden_function_grants.sql`). Only the pre-auth password-setup functions remain anon-callable by design.
+- `.env`, `CREDENTIALS.md`, `Test_Data/`, `node_modules/` and build artifacts are untracked and must never be committed.
+
+### ⚠️ One-time actions required (secrets were previously committed)
+
+The repository history previously contained `.env` and `CREDENTIALS.md`. Even though they are removed now, treat the old values as compromised:
+
+1. **Rotate the Resend API key**: [resend.com/api-keys](https://resend.com/api-keys) → revoke the old key → create a new one → update `.env` locally and the env vars on your hosting platform.
+2. **Admin password**: already rotated in the database (new value is in your local `CREDENTIALS.md`, which is no longer tracked by git).
+3. **Enable Leaked Password Protection**: Supabase Dashboard → Authentication → Policies/Security → enable "Leaked password protection" (HaveIBeenPwned check).
+4. *(Optional, recommended if the repo is public)*: scrub git history with [`git filter-repo`](https://github.com/newren/git-filter-repo) to remove `.env`/`CREDENTIALS.md` from old commits, then force-push.
+
+---
+
+## ⏰ Supabase Free-Tier Keep-Alive
+
+Supabase free projects pause after ~7 days of inactivity. This repo ships a GitHub Actions workflow (`.github/workflows/supabase-keep-alive.yml`) that pings the database every 3 days via the harmless `keep_alive_ping()` RPC (returns only a timestamp).
+
+**Setup (one time):** in your GitHub repo → Settings → Secrets and variables → Actions → add:
+
+| Secret | Value |
+|---|---|
+| `SUPABASE_URL` | `https://<your-project-ref>.supabase.co` |
+| `SUPABASE_ANON_KEY` | Your Supabase anon/public key |
+
+You can verify it works via Actions → "Supabase Keep-Alive" → Run workflow.
+
+---
+
+## ✅ Production Launch Checklist
+
+1. Rotate the Resend API key (see Security Notes above).
+2. Enable Leaked Password Protection in Supabase Auth.
+3. Set all env vars on the hosting platform (Render/Vercel) — never rely on committed files.
+4. Update Supabase Auth **Site URL** and **Redirect URLs** to the production domain.
+5. Add the two GitHub Actions secrets for the keep-alive workflow.
+6. Verify `npm run build` passes and smoke-test: login, orders upload, availability flow, PO generation, deliveries, comparison dashboards.
+7. Confirm the admin account works with the new password and create personal admin accounts for real users (avoid sharing one super-admin login).
 
 ---
 

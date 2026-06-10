@@ -21,6 +21,16 @@ dist/
 Thumbs.db
 .idea/
 .vscode/
+*.swp
+*.swo
 
 # Logs
 *.log
+
+# Secrets & credentials — never commit
+CREDENTIALS.md
+
+# Local/business data
+Test_Data/
+*.xlsx
+.~lock.*
