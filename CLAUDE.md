@@ -39,6 +39,15 @@ Every request passes through `src/middleware.ts`, which:
 
 Roles: `super_admin` → `admin` → `company`. Auth state is managed via Supabase Auth tokens stored in httpOnly cookies. The `users_profile` table links auth users to roles and (for company users) to their `companies` row via `companies.user_id`.
 
+`users_profile` columns: `id` (UUID, FK to auth.users), `email`, `role`, `status` (`pending`/`approved`/`suspended`), `invited_by`, `approved_by`, `created_at`, `approved_at`. There is no `full_name` column.
+
+To create a new admin: create the user in Supabase Dashboard → Authentication → Users, then run in SQL Editor:
+```sql
+UPDATE public.users_profile
+SET role = 'super_admin', status = 'approved', approved_at = NOW(), approved_by = id
+WHERE email = 'admin@example.com';
+```
+
 Company invitation flow: Admin creates company → sends invite email (Resend via `src/lib/email.ts`) → company clicks setup link → `POST /api/auth/setup-password` creates Supabase auth user and links it to the company.
 
 ### Database
@@ -69,7 +78,7 @@ Copy `.env.example` to `.env` for local development.
 
 Production runs on Render.com (`render.yaml`). Build command: `npm install --legacy-peer-deps && npm run build`. Start command: `npm start`. All secrets are set via the Render dashboard — never committed.
 
-The GitHub Actions workflow `.github/workflows/supabase-keep-alive.yml` pings Supabase every 3 days to prevent free-tier auto-pause.
+The GitHub Actions workflow `.github/workflows/supabase-keep-alive.yml` pings Supabase every 3 days to prevent free-tier auto-pause. It requires two repository secrets set in GitHub Settings → Secrets & Variables → Actions: `SUPABASE_URL` and `SUPABASE_ANON_KEY`. Without these the workflow fails silently and the project will still pause.
 
 ## Security Notes
 
