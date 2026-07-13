@@ -128,7 +128,37 @@ export const GET: APIRoute = async ({ request, cookies, url }) => {
     return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }
 
-  return new Response(JSON.stringify({ data }), {
+  let combined = data || [];
+
+  // Surface auth accounts with no matching profile row — e.g. left behind by an
+  // earlier delete that only removed the profile — so they can still be found
+  // and fully removed instead of silently blocking their email from reuse.
+  if (supabaseAdmin) {
+    const profileIds = new Set(combined.map((u: any) => u.id));
+    const orphans: any[] = [];
+    let page = 1;
+    const perPage = 200;
+    while (true) {
+      const { data: pageData, error: listErr } = await supabaseAdmin.auth.admin.listUsers({ page, perPage });
+      if (listErr || !pageData?.users?.length) break;
+      for (const authUser of pageData.users) {
+        if (!profileIds.has(authUser.id)) {
+          orphans.push({
+            id: authUser.id,
+            email: authUser.email,
+            role: 'user',
+            status: 'orphaned',
+            created_at: authUser.created_at,
+          });
+        }
+      }
+      if (pageData.users.length < perPage) break;
+      page += 1;
+    }
+    combined = [...combined, ...orphans];
+  }
+
+  return new Response(JSON.stringify({ data: combined }), {
     headers: { 'Content-Type': 'application/json' }
   });
 };

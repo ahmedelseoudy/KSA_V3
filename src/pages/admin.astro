@@ -301,6 +301,7 @@ const isSuper = profile.role === 'super_admin';
     if (status === 'approved') return 'bg-green-500/10 text-green-300 ring-1 ring-inset ring-green-500/30';
     if (status === 'pending') return 'bg-yellow-500/10 text-yellow-300 ring-1 ring-inset ring-yellow-500/30';
     if (status === 'suspended') return 'bg-red-500/10 text-red-300 ring-1 ring-inset ring-red-500/30';
+    if (status === 'orphaned') return 'bg-orange-500/10 text-orange-300 ring-1 ring-inset ring-orange-500/30';
     return 'bg-gray-500/10 text-gray-300 ring-1 ring-inset ring-gray-500/30';
   }
 
@@ -308,6 +309,9 @@ const isSuper = profile.role === 'super_admin';
     if (user.id === currentUser) return '<span class="text-gray-500 text-xs">Current User</span>';
     let b = '';
     const canDelete = isSuper || user.role !== 'super_admin';
+    if (user.status === 'orphaned') {
+      return `<button onclick="window.rejectUser('${user.id}')" class="text-red-400 hover:text-red-300 mr-3 text-xs font-medium transition-colors">Delete</button>`;
+    }
     if (user.status === 'pending') {
       b += `<button onclick="window.approveUser('${user.id}')" class="text-green-400 hover:text-green-300 mr-3 text-xs font-medium transition-colors">Approve</button>`;
       b += `<button onclick="window.rejectUser('${user.id}')" class="text-red-400 hover:text-red-300 mr-3 text-xs font-medium transition-colors">Reject</button>`;
