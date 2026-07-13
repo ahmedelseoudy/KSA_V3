@@ -54,7 +54,9 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   }
 
   const now = new Date().toISOString();
-  const { error: profileErr } = await supabaseAdmin.from('users_profile').insert({
+  // Supabase auto-creates a users_profile row (role='user', status='pending') via a
+  // DB trigger when the auth user is created, so this must be an upsert, not an insert.
+  const { error: profileErr } = await supabaseAdmin.from('users_profile').upsert({
     id: created.user.id,
     email,
     role: 'admin',
