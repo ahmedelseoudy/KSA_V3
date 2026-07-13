@@ -5,9 +5,11 @@ import node from '@astrojs/node';
 
 export default defineConfig({
   output: 'server', // SSR mode required for authentication
+  server: {
+    host: true // bind 0.0.0.0; @astrojs/node reads config.server.host, not adapter options
+  },
   adapter: node({
-    mode: 'standalone',
-    host: true // bind 0.0.0.0 regardless of HOST env var, required for Render's port scan
+    mode: 'standalone'
   }),
   integrations: [tailwind(), react()],
   vite: {
