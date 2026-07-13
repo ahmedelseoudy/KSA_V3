@@ -35,6 +35,26 @@ export function companyInviteEmail(opts: {
   };
 }
 
+export function adminInviteEmail(opts: {
+  login_url: string;
+  temp_password: string;
+}): { subject: string; html: string } {
+  return {
+    subject: `You've been added as an admin on KSA CRM`,
+    html: wrapper(`
+      <h2 style="margin:0 0 16px;">You've been added as an admin</h2>
+      <p>An account with admin access has been created for you on KSA CRM.</p>
+      <table style="width:100%; border-collapse:collapse; margin:16px 0;">
+        <tr><td style="padding:6px 0; color:#6b7280;">Temporary password:</td><td style="padding:6px 0;"><strong>${escapeHtml(opts.temp_password)}</strong></td></tr>
+      </table>
+      <p style="margin:24px 0;">
+        <a href="${opts.login_url}" style="${buttonStyles}">Log in</a>
+      </p>
+      <p style="font-size:13px; color:#6b7280;">Please log in and change your password as soon as possible.</p>
+    `),
+  };
+}
+
 export function availabilityRequestEmail(opts: {
   company_name: string;
   batch_name: string;

@@ -153,6 +153,46 @@ const isSuper = profile.role === 'super_admin';
         </div>
       </div>
     </div>
+
+    <!-- Create Admin Modal -->
+    {isSuper && (
+      <div id="createAdminModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm overflow-y-auto h-full w-full hidden">
+        <div class="relative top-20 mx-auto w-96 max-w-[calc(100vw-2rem)] bg-gray-900 border border-gray-800 rounded-2xl shadow-modal">
+          <div class="p-6">
+            <h3 class="text-lg font-semibold text-white mb-4">Create Admin</h3>
+            <form id="createAdminForm">
+              <div class="mb-6">
+                <label for="createAdminEmail" class="block text-sm font-medium text-gray-300 mb-1.5">Email Address</label>
+                <input
+                  type="email"
+                  id="createAdminEmail"
+                  required
+                  class="block w-full px-3 py-2 bg-gray-800/70 border border-gray-700 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="admin@example.com"
+                />
+                <p class="mt-1.5 text-xs text-gray-500">A temporary password is generated and emailed to them. They'll be approved with admin access immediately.</p>
+              </div>
+              <div class="flex justify-end gap-3">
+                <button
+                  type="button"
+                  id="cancelCreateAdmin"
+                  class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 text-sm font-medium rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  id="submitCreateAdmin"
+                  class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold rounded-lg transition-colors shadow-card"
+                >
+                  Create Admin
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    )}
   </div>
 
 <script define:vars={{ currentUserId: profile?.id, isSuperAdmin: isSuper }}>
@@ -171,6 +211,10 @@ const isSuper = profile.role === 'super_admin';
   const inviteModal = document.getElementById('inviteModal');
   const inviteForm = document.getElementById('inviteForm');
   const inviteEmail = document.getElementById('inviteEmail');
+  const createAdminModal = document.getElementById('createAdminModal');
+  const createAdminForm = document.getElementById('createAdminForm');
+  const createAdminEmail = document.getElementById('createAdminEmail');
+  const submitCreateAdmin = document.getElementById('submitCreateAdmin');
 
   // Load and display users via server-side API
   async function loadUsers() {
@@ -359,6 +403,51 @@ const isSuper = profile.role === 'super_admin';
   document.getElementById('cancelInvite')?.addEventListener('click', () => {
     inviteModal.classList.add('hidden');
     inviteForm.reset();
+  });
+
+  document.getElementById('createAdminButton')?.addEventListener('click', () => {
+    createAdminModal?.classList.remove('hidden');
+  });
+
+  document.getElementById('cancelCreateAdmin')?.addEventListener('click', () => {
+    createAdminModal?.classList.add('hidden');
+    createAdminForm?.reset();
+  });
+
+  createAdminModal?.addEventListener('click', (e) => {
+    if (e.target === createAdminModal) { createAdminModal.classList.add('hidden'); createAdminForm?.reset(); }
+  });
+
+  createAdminForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = createAdminEmail.value.trim().toLowerCase();
+    if (!email) return;
+    submitCreateAdmin.disabled = true;
+    submitCreateAdmin.textContent = 'Creating...';
+    try {
+      const resp = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const json = await resp.json().catch(() => ({}));
+      if (!resp.ok || !json.success) throw new Error(json.error || 'Failed to create admin');
+
+      createAdminModal.classList.add('hidden');
+      createAdminForm.reset();
+      showNotification(
+        json.emailed
+          ? `Admin created — an email with login instructions was sent to ${email}`
+          : `Admin created. Email delivery failed — temporary password: ${json.temp_password}`,
+        'success'
+      );
+      loadUsers();
+    } catch (err) {
+      showNotification('Error: ' + err.message, 'error');
+    } finally {
+      submitCreateAdmin.disabled = false;
+      submitCreateAdmin.textContent = 'Create Admin';
+    }
   });
 
   inviteForm?.addEventListener('submit', async (e) => {
