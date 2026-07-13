@@ -249,13 +249,29 @@ export const DELETE: APIRoute = async ({ request, cookies, url }) => {
     }
   }
 
-  const { error } = await supabase
+  if (!supabaseAdmin) {
+    return new Response(JSON.stringify({ error: 'Admin client not configured' }), { status: 500 });
+  }
+
+  // admin_actions.admin_id / target_user reference auth.users(id) without ON DELETE
+  // CASCADE, so the auth user can't be removed while an audit row still points to it.
+  await supabaseAdmin
+    .from('admin_actions')
+    .delete()
+    .or(`admin_id.eq.${userId},target_user.eq.${userId}`);
+
+  const { error: profileError } = await supabaseAdmin
     .from('users_profile')
     .delete()
     .eq('id', userId);
 
-  if (error) {
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  if (profileError) {
+    return new Response(JSON.stringify({ error: profileError.message }), { status: 500 });
+  }
+
+  const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId);
+  if (authError) {
+    return new Response(JSON.stringify({ error: authError.message }), { status: 500 });
   }
 
   return new Response(JSON.stringify({ success: true }), {

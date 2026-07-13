@@ -307,14 +307,17 @@ const isSuper = profile.role === 'super_admin';
   function getActions(user) {
     if (user.id === currentUser) return '<span class="text-gray-500 text-xs">Current User</span>';
     let b = '';
+    const canDelete = isSuper || user.role !== 'super_admin';
     if (user.status === 'pending') {
       b += `<button onclick="window.approveUser('${user.id}')" class="text-green-400 hover:text-green-300 mr-3 text-xs font-medium transition-colors">Approve</button>`;
       b += `<button onclick="window.rejectUser('${user.id}')" class="text-red-400 hover:text-red-300 mr-3 text-xs font-medium transition-colors">Reject</button>`;
     }
     if (user.status === 'approved') {
       b += `<button onclick="window.suspendUser('${user.id}')" class="text-red-400 hover:text-red-300 mr-3 text-xs font-medium transition-colors">Suspend</button>`;
+      if (canDelete) b += `<button onclick="window.rejectUser('${user.id}')" class="text-red-400 hover:text-red-300 mr-3 text-xs font-medium transition-colors">Delete</button>`;
     } else if (user.status === 'suspended') {
       b += `<button onclick="window.unsuspendUser('${user.id}')" class="text-green-400 hover:text-green-300 mr-3 text-xs font-medium transition-colors">Unsuspend</button>`;
+      if (canDelete) b += `<button onclick="window.rejectUser('${user.id}')" class="text-red-400 hover:text-red-300 mr-3 text-xs font-medium transition-colors">Delete</button>`;
     }
     if (isSuper && user.role !== 'super_admin') {
       if (user.role === 'user') b += `<button onclick="window.promoteToAdmin('${user.id}')" class="text-blue-400 hover:text-blue-300 mr-3 text-xs font-medium transition-colors">Make Admin</button>`;
