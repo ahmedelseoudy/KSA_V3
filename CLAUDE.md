@@ -13,6 +13,11 @@ npm run preview    # Preview production build locally
 
 Install with `npm install --legacy-peer-deps` (required due to peer dep conflicts).
 
+There is no unit test suite. `tests/e2e-ahmed.mjs` is a standalone end-to-end script (login → create batch → upload XLSX → send availability → generate PO) run against a live dev server:
+```bash
+BASE_URL=http://localhost:4321 ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=... node tests/e2e-ahmed.mjs
+```
+
 ## Architecture
 
 **Astro 4 SSR monolith** with React islands, backed by Supabase (Postgres + Auth + RLS). Deployed to Render.com.

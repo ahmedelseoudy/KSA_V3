@@ -6,91 +6,113 @@ export const NAV_ITEMS: NavItem[] = [
   {
     path: '/dashboard',
     label: 'Dashboard',
-    icon: '📈',
-    roles: ['user', 'admin', 'super_admin']
+    icon: 'home',
+    roles: ['user', 'admin', 'super_admin'],
+    group: 'Overview'
   },
   {
     path: '/products',
-    label: 'Products Database',
-    icon: '📦',
-    roles: ['admin', 'super_admin']
+    label: 'Products',
+    icon: 'cube',
+    roles: ['admin', 'super_admin'],
+    group: 'Catalog'
   },
   {
     path: '/companies',
     label: 'Companies',
-    icon: '🏢',
-    roles: ['admin', 'super_admin']
-  },
-  {
-    path: '/admin/invite',
-    label: 'Invites',
-    icon: '✉️',
-    roles: ['super_admin']
+    icon: 'building',
+    roles: ['admin', 'super_admin'],
+    group: 'Catalog'
   },
   {
     path: '/orders',
     label: 'Order Batches',
-    icon: '📋',
-    roles: ['admin', 'super_admin']
+    icon: 'clipboard',
+    roles: ['admin', 'super_admin'],
+    group: 'Order Workflow'
   },
   {
     path: '/availability',
     label: 'Availability',
-    icon: '✅',
-    roles: ['admin', 'super_admin']
+    icon: 'check-circle',
+    roles: ['admin', 'super_admin'],
+    group: 'Order Workflow'
   },
   {
     path: '/purchase-orders',
     label: 'Purchase Orders',
-    icon: '📝',
-    roles: ['admin', 'super_admin']
-  },
-  {
-    path: '/comparison',
-    label: 'Comparison',
-    icon: '🔀',
-    roles: ['admin', 'super_admin']
+    icon: 'document',
+    roles: ['admin', 'super_admin'],
+    group: 'Order Workflow'
   },
   {
     path: '/deliveries',
     label: 'Deliveries',
-    icon: '🚚',
-    roles: ['admin', 'super_admin']
+    icon: 'truck',
+    roles: ['admin', 'super_admin'],
+    group: 'Order Workflow'
+  },
+  {
+    path: '/comparison',
+    label: 'Comparison',
+    icon: 'scale',
+    roles: ['admin', 'super_admin'],
+    group: 'Insights'
   },
   {
     path: '/analytics',
     label: 'Analytics',
-    icon: '📊',
-    roles: ['admin', 'super_admin']
+    icon: 'chart',
+    roles: ['admin', 'super_admin'],
+    group: 'Insights'
   },
   {
     path: '/admin',
-    label: 'Admin Panel',
-    icon: '⚙️',
-    roles: ['admin', 'super_admin']
+    label: 'User Management',
+    icon: 'users',
+    roles: ['admin', 'super_admin'],
+    group: 'Administration'
+  },
+  {
+    path: '/admin/invite',
+    label: 'Invites',
+    icon: 'mail',
+    roles: ['super_admin'],
+    group: 'Administration'
   },
   {
     path: '/portal',
     label: 'My Dashboard',
-    icon: '🏠',
-    roles: ['company']
+    icon: 'home',
+    roles: ['company'],
+    group: 'Portal'
   },
   {
     path: '/portal/availability',
     label: 'Availability Requests',
-    icon: '✅',
-    roles: ['company']
+    icon: 'check-circle',
+    roles: ['company'],
+    group: 'Portal'
   },
   {
     path: '/portal/purchase-orders',
     label: 'Purchase Orders',
-    icon: '📝',
-    roles: ['company']
+    icon: 'document',
+    roles: ['company'],
+    group: 'Portal'
   },
   {
     path: '/portal/deliveries',
     label: 'Deliveries',
-    icon: '🚚',
-    roles: ['company']
+    icon: 'truck',
+    roles: ['company'],
+    group: 'Portal'
+  },
+  {
+    path: '/portal/comparison',
+    label: 'Order Comparison',
+    icon: 'scale',
+    roles: ['company'],
+    group: 'Portal'
   }
 ];

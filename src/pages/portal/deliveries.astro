@@ -1,5 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import PageHeader from '../../components/ui/PageHeader.astro';
+import StatCard from '../../components/ui/StatCard.astro';
 
 const user = Astro.locals.user;
 const profile = (user as any)?.profile;
@@ -11,13 +13,13 @@ if (!profile || profile.role !== 'company') {
 
 <Layout title="Your Deliveries - Company Portal">
   <div id="portalDeliveriesRoot" class="max-w-7xl mx-auto">
-    <h1 class="text-2xl font-bold text-white mb-6">Your Deliveries</h1>
+    <PageHeader title="Your Deliveries" subtitle="Track delivery progress and item-level status for your purchase orders" />
 
     <!-- Filters -->
-    <div class="bg-gray-800 rounded-lg p-4 mb-6 flex gap-4 items-end">
+    <div class="flex flex-wrap items-center gap-3 bg-gray-800/60 border border-gray-700/60 rounded-xl p-3 mb-6">
       <div>
-        <label class="block text-sm text-gray-400 mb-1">Status</label>
-        <select id="statusFilter" class="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white">
+        <label class="block text-xs text-gray-500 mb-1">Status</label>
+        <select id="statusFilter" class="px-3 py-2 bg-gray-800/70 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent">
           <option value="">All</option>
           <option value="sent">Sent</option>
           <option value="confirmed">Confirmed</option>
@@ -29,59 +31,45 @@ if (!profile || profile.role !== 'company') {
 
     <!-- Stats -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-      <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
-        <p class="text-gray-400 text-sm">Total Deliveries</p>
-        <p class="text-2xl font-bold text-white" id="totalDeliveries">-</p>
-      </div>
-      <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
-        <p class="text-gray-400 text-sm">Total Value</p>
-        <p class="text-2xl font-bold text-green-400" id="totalValue">-</p>
-      </div>
-      <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
-        <p class="text-gray-400 text-sm">Pending Delivery</p>
-        <p class="text-2xl font-bold text-yellow-400" id="pendingDelivery">-</p>
-      </div>
-      <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
-        <p class="text-gray-400 text-sm">Fully Delivered</p>
-        <p class="text-2xl font-bold text-blue-400" id="fullyDelivered">-</p>
-      </div>
+      <StatCard label="Total Deliveries" valueId="totalDeliveries" valueClass="text-white" />
+      <StatCard label="Total Value" valueId="totalValue" valueClass="text-green-400" />
+      <StatCard label="Pending Delivery" valueId="pendingDelivery" valueClass="text-yellow-400" />
+      <StatCard label="Fully Delivered" valueId="fullyDelivered" valueClass="text-blue-400" />
     </div>
 
     <!-- PO Table -->
-    <div class="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead class="bg-gray-700/50">
-            <tr>
-              <th class="px-3 py-3 text-left text-gray-300 w-8"></th>
-              <th class="px-4 py-3 text-left text-gray-300">PO Number</th>
-              <th class="px-4 py-3 text-left text-gray-300">Company</th>
-              <th class="px-4 py-3 text-right text-gray-300">Items</th>
-              <th class="px-4 py-3 text-right text-gray-300">Total Amount</th>
-              <th class="px-4 py-3 text-left text-gray-300">Delivery Date</th>
-              <th class="px-4 py-3 text-left text-gray-300">Availability</th>
-              <th class="px-4 py-3 text-center text-gray-300">Status</th>
-              <th class="px-4 py-3 text-left text-gray-300">Created</th>
-              <th class="px-4 py-3 text-center text-gray-300">Actions</th>
-            </tr>
-          </thead>
-          <tbody id="poTableBody">
-            <tr><td colspan="10" class="px-4 py-8 text-center text-gray-400">Loading...</td></tr>
-          </tbody>
-        </table>
-      </div>
+    <div class="overflow-x-auto rounded-xl border border-gray-700/60 bg-gray-800/40">
+      <table class="w-full text-sm">
+        <thead>
+          <tr>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80 w-8"></th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">PO Number</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Company</th>
+            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Items</th>
+            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Total Amount</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Delivery Date</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Availability</th>
+            <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Status</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Created</th>
+            <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="poTableBody">
+          <tr><td colspan="10" class="px-4 py-12 text-center text-gray-500 text-sm animate-pulse">Loading...</td></tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </Layout>
 
 <script>
   const statusColors = {
-    draft: 'bg-gray-700 text-gray-300',
-    sent: 'bg-blue-900/30 text-blue-300',
-    confirmed: 'bg-purple-900/30 text-purple-300',
-    partially_delivered: 'bg-yellow-900/30 text-yellow-300',
-    delivered: 'bg-green-900/30 text-green-300',
-    cancelled: 'bg-red-900/30 text-red-300',
+    draft: 'bg-gray-500/10 text-gray-300 ring-1 ring-inset ring-gray-500/30',
+    sent: 'bg-blue-500/10 text-blue-300 ring-1 ring-inset ring-blue-500/30',
+    confirmed: 'bg-purple-500/10 text-purple-300 ring-1 ring-inset ring-purple-500/30',
+    partially_delivered: 'bg-yellow-500/10 text-yellow-300 ring-1 ring-inset ring-yellow-500/30',
+    delivered: 'bg-green-500/10 text-green-300 ring-1 ring-inset ring-green-500/30',
+    cancelled: 'bg-red-500/10 text-red-300 ring-1 ring-inset ring-red-500/30',
   } as Record<string, string>;
 
   async function loadPOs() {
@@ -109,7 +97,7 @@ if (!profile || profile.role !== 'company') {
     if (!tbody) return;
 
     if (pos.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="10" class="px-4 py-8 text-center text-gray-400">No purchase orders found.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="10" class="px-4 py-12 text-center text-gray-400 text-sm">No purchase orders found.</td></tr>';
       return;
     }
 
@@ -117,25 +105,25 @@ if (!profile || profile.role !== 'company') {
       const delivery = po.delivery_date ? new Date(po.delivery_date).toLocaleDateString() : '-';
       const availabilityLink = '-';
       return `
-      <tr class="border-b border-gray-700/50 group" data-row="${po.id}">
-        <td class="px-3 py-3 align-top">
-          <button class="po-expand-btn w-6 h-6 flex items-center justify-center rounded bg-gray-700 hover:bg-gray-600 text-white text-xs" aria-expanded="false" aria-controls="po-details-${po.id}" data-id="${po.id}">+</button>
+      <tr class="border-t border-gray-700/40 hover:bg-gray-800/40 transition-colors group" data-row="${po.id}">
+        <td class="px-4 py-3 align-top">
+          <button class="po-expand-btn w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 text-xs transition-colors" aria-expanded="false" aria-controls="po-details-${po.id}" data-id="${po.id}">+</button>
         </td>
         <td class="px-4 py-3 text-white font-mono">${po.po_number || '-'}</td>
         <td class="px-4 py-3 text-white">${po.company?.name || '-'}</td>
-        <td class="px-4 py-3 text-right text-white">${po.total_items}</td>
-        <td class="px-4 py-3 text-right text-white">$${Number(po.total_amount || 0).toFixed(2)}</td>
+        <td class="px-4 py-3 text-right text-white tabular-nums">${po.total_items}</td>
+        <td class="px-4 py-3 text-right text-white tabular-nums">$${Number(po.total_amount || 0).toFixed(2)}</td>
         <td class="px-4 py-3 text-white">${delivery}</td>
-        <td class="px-4 py-3">${availabilityLink}</td>
+        <td class="px-4 py-3 text-gray-400">${availabilityLink}</td>
         <td class="px-4 py-3 text-center">
-          <span class="px-2 py-0.5 text-xs rounded-full ${statusColors[po.status] || 'bg-gray-700 text-gray-300'}">${po.status.replace(/_/g, ' ')}</span>
+          <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${statusColors[po.status] || 'bg-gray-500/10 text-gray-300 ring-1 ring-inset ring-gray-500/30'}">${po.status.replace(/_/g, ' ')}</span>
         </td>
         <td class="px-4 py-3 text-gray-400 text-sm">${new Date(po.created_at).toLocaleDateString()}</td>
         <td class="px-4 py-3 text-center">
-          <a href="/portal/comparison?po_id=${po.id}" class="text-sm text-purple-400 hover:text-purple-300">Compare</a>
+          <a href="/portal/comparison?po_id=${po.id}" class="text-sm font-medium text-purple-400 hover:text-purple-300 transition-colors">Compare</a>
         </td>
       </tr>
-      <tr id="po-details-${po.id}" class="hidden border-b border-gray-800/50 bg-gray-900/40" data-loaded="false">
+      <tr id="po-details-${po.id}" class="hidden border-t border-gray-700/40 bg-gray-900/40" data-loaded="false">
         <td></td>
         <td class="px-4 py-3" colspan="9">
           <div class="text-gray-400 text-sm" id="po-details-content-${po.id}">Loading items...</div>
@@ -173,42 +161,42 @@ if (!profile || profile.role !== 'company') {
   async function loadPOItems(poId: string) {
     const container = document.getElementById(`po-details-content-${poId}`);
     if (!container) return;
-    container.innerHTML = '<div class="text-gray-400">Loading items...</div>';
+    container.innerHTML = '<div class="text-gray-500 text-sm animate-pulse">Loading items...</div>';
 
     const resp = await fetch(`/api/purchase-orders?id=${poId}&items=true`);
     if (!resp.ok) return;
     const { data } = await resp.json();
 
     container.innerHTML = `
-      <div class="overflow-x-auto">
+      <div class="overflow-x-auto rounded-xl border border-gray-700/60 bg-gray-800/40">
         <table class="w-full text-sm">
-          <thead class="bg-gray-700/50">
+          <thead>
             <tr>
-              <th class="px-3 py-2 text-left text-gray-300">Product</th>
-              <th class="px-3 py-2 text-right text-gray-300">Ordered</th>
-              <th class="px-3 py-2 text-right text-gray-300">Boxes</th>
-              <th class="px-3 py-2 text-right text-gray-300">Price</th>
-              <th class="px-3 py-2 text-right text-gray-300">Delivered</th>
-              <th class="px-3 py-2 text-center text-gray-300">Status</th>
-              <th class="px-3 py-2 text-left text-gray-300">Notes</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Product</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Ordered</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Boxes</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Price</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Delivered</th>
+              <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Status</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Notes</th>
             </tr>
           </thead>
           <tbody>
             ${(data || []).map((item: any) => `
-              <tr class="border-b border-gray-700/50" data-item-id="${item.id}">
-                <td class="px-3 py-2 text-white">${item.product?.title || item.product?.barcode || '-'}</td>
-                <td class="px-3 py-2 text-right text-white">${item.quantity}</td>
-                <td class="px-3 py-2 text-right text-white">${Number(item.boxes).toFixed(1)}</td>
-                <td class="px-3 py-2 text-right text-white">$${Number(item.total_price).toFixed(2)}</td>
-                <td class="px-3 py-2 text-right">${item.delivered_qty ?? 0}</td>
-                <td class="px-3 py-2 text-center">
-                  <span class="px-2 py-0.5 text-xs rounded-full ${
-                    item.delivery_status === 'delivered' ? 'bg-green-900/30 text-green-300' :
-                    item.delivery_status === 'partial' ? 'bg-yellow-900/30 text-yellow-300' :
-                    'bg-gray-700 text-gray-400'
+              <tr class="border-t border-gray-700/40 hover:bg-gray-800/40 transition-colors" data-item-id="${item.id}">
+                <td class="px-4 py-3 text-white">${item.product?.title || item.product?.barcode || '-'}</td>
+                <td class="px-4 py-3 text-right text-white tabular-nums">${item.quantity}</td>
+                <td class="px-4 py-3 text-right text-white tabular-nums">${Number(item.boxes).toFixed(1)}</td>
+                <td class="px-4 py-3 text-right text-white tabular-nums">$${Number(item.total_price).toFixed(2)}</td>
+                <td class="px-4 py-3 text-right text-white tabular-nums">${item.delivered_qty ?? 0}</td>
+                <td class="px-4 py-3 text-center">
+                  <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${
+                    item.delivery_status === 'delivered' ? 'bg-green-500/10 text-green-300 ring-1 ring-inset ring-green-500/30' :
+                    item.delivery_status === 'partial' ? 'bg-yellow-500/10 text-yellow-300 ring-1 ring-inset ring-yellow-500/30' :
+                    'bg-gray-500/10 text-gray-300 ring-1 ring-inset ring-gray-500/30'
                   }">${item.delivery_status}</span>
                 </td>
-                <td class="px-3 py-2 text-gray-300">${item.delivery_notes ? String(item.delivery_notes) : '-'}</td>
+                <td class="px-4 py-3 text-gray-300">${item.delivery_notes ? String(item.delivery_notes) : '-'}</td>
               </tr>
             `).join('')}
           </tbody>

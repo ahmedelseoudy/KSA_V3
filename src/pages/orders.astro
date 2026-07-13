@@ -1,5 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import PageHeader from '../components/ui/PageHeader.astro';
 
 const user = Astro.locals.user;
 const profile = (user as any)?.profile;
@@ -11,96 +12,95 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
 
 <Layout title="Order Batches - KSA CRM">
   <div class="max-w-7xl mx-auto">
-    <div class="flex justify-between items-center mb-6">
-      <h1 class="text-2xl font-bold text-white">Order Batches</h1>
-      <button id="createBatchBtn" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
-        + New Order Batch
+    <PageHeader title="Order Batches" subtitle="Create order batches, upload order files, and track them from availability to delivery">
+      <button slot="actions" id="createBatchBtn" class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold rounded-lg transition-colors shadow-card">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+        New Order Batch
       </button>
-    </div>
+    </PageHeader>
 
     <!-- Filters -->
-    <div class="bg-gray-800 rounded-lg p-4 mb-6">
-      <div class="flex gap-4 items-end">
-        <select id="statusFilter" class="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none">
-          <option value="">All Status</option>
-          <option value="draft">Draft</option>
-          <option value="availability_sent">Availability Sent</option>
-          <option value="po_sent">PO Sent</option>
-          <option value="partially_delivered">Partially Delivered</option>
-          <option value="completed">Completed</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
-      </div>
+    <div class="flex flex-wrap items-center gap-3 bg-gray-800/60 border border-gray-700/60 rounded-xl p-3 mb-6">
+      <label for="statusFilter" class="text-xs text-gray-500 pl-1">Status</label>
+      <select id="statusFilter" class="px-3 py-2 bg-gray-800/70 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+        <option value="">All Status</option>
+        <option value="draft">Draft</option>
+        <option value="availability_sent">Availability Sent</option>
+        <option value="po_sent">PO Sent</option>
+        <option value="partially_delivered">Partially Delivered</option>
+        <option value="completed">Completed</option>
+        <option value="cancelled">Cancelled</option>
+      </select>
     </div>
 
     <!-- Batches List -->
     <div id="batchesList" class="space-y-4">
-      <div class="text-center text-gray-400 py-8">Loading order batches...</div>
+      <div class="text-center text-gray-500 text-sm animate-pulse py-12">Loading order batches...</div>
     </div>
 
     <!-- Upload Orders Modal -->
-    <div id="uploadModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center">
-      <div class="bg-gray-800 rounded-xl p-6 w-full max-w-xl mx-4">
-        <h2 class="text-xl font-bold text-white mb-2">Upload Orders</h2>
+    <div id="uploadModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center">
+      <div class="bg-gray-900 border border-gray-800 rounded-2xl shadow-modal p-6 w-full max-w-xl mx-4">
+        <h2 class="text-lg font-semibold text-white mb-2">Upload Orders</h2>
         <p class="text-sm text-gray-400 mb-4">XLSX/CSV with columns: barcode, order_qty, asin, title, total cost. Items will be matched against your products database by barcode.</p>
         <input type="hidden" id="uploadBatchId" />
-        <div class="border-2 border-dashed border-gray-600 rounded-lg p-8 text-center mb-4">
+        <div class="border-2 border-dashed border-gray-700 rounded-xl p-8 text-center mb-4 hover:border-purple-500/50 transition-colors">
           <input type="file" id="ordersFileInput" accept=".xlsx,.xls,.csv" class="hidden" />
-          <p class="text-gray-400">Drop file here or <button type="button" class="text-purple-400 hover:text-purple-300" onclick="document.getElementById('ordersFileInput').click()">browse</button></p>
+          <p class="text-gray-400 text-sm">Drop file here or <button type="button" class="text-purple-400 hover:text-purple-300 font-medium" onclick="document.getElementById('ordersFileInput').click()">browse</button></p>
           <p id="selectedOrdersFile" class="text-gray-500 text-xs mt-2">No file selected</p>
         </div>
-        <div id="ordersUploadProgress" class="hidden mb-4 text-sm text-gray-400">Processing…</div>
+        <div id="ordersUploadProgress" class="hidden mb-4 text-sm text-gray-500 animate-pulse">Processing…</div>
         <div id="ordersUploadResult" class="hidden mb-4 text-sm"></div>
         <div id="uploadActions" class="flex justify-end gap-3">
-          <button type="button" id="closeUploadModal" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-500">Close</button>
-          <button type="button" id="startOrdersUpload" disabled class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50">Upload</button>
+          <button type="button" id="closeUploadModal" class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 text-sm font-medium rounded-lg transition-colors">Close</button>
+          <button type="button" id="startOrdersUpload" disabled class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold rounded-lg transition-colors shadow-card disabled:opacity-50 disabled:cursor-not-allowed">Upload</button>
         </div>
       </div>
     </div>
 
     <!-- Batch Detail Modal -->
-    <div id="batchDetailModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center">
-      <div class="bg-gray-800 rounded-xl p-6 w-full max-w-5xl mx-4 max-h-[90vh] flex flex-col">
+    <div id="batchDetailModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center">
+      <div class="bg-gray-900 border border-gray-800 rounded-2xl shadow-modal p-6 w-full max-w-5xl mx-4 max-h-[90vh] flex flex-col">
         <div class="flex justify-between items-center mb-4">
-          <h2 class="text-xl font-bold text-white" id="batchDetailTitle">Batch Items</h2>
-          <button id="closeBatchDetail" class="text-gray-400 hover:text-white text-2xl leading-none">&times;</button>
+          <h2 class="text-lg font-semibold text-white" id="batchDetailTitle">Batch Items</h2>
+          <button id="closeBatchDetail" class="text-gray-400 hover:text-white text-2xl leading-none transition-colors">&times;</button>
         </div>
         <!-- Stats row -->
-        <div class="grid grid-cols-4 gap-3 mb-4" id="batchDetailStats">
-          <div class="bg-gray-700 rounded-lg p-3">
-            <p class="text-xs text-gray-400">Total Items</p>
-            <p class="text-xl font-bold text-white" id="detailTotal">-</p>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4" id="batchDetailStats">
+          <div class="bg-gray-800/60 border border-gray-700/60 rounded-xl p-3 shadow-card">
+            <p class="text-xs font-medium uppercase tracking-wider text-gray-400">Total Items</p>
+            <p class="text-xl font-bold text-white mt-1 tabular-nums" id="detailTotal">-</p>
           </div>
-          <div class="bg-green-900/30 rounded-lg p-3">
-            <p class="text-xs text-gray-400">Matched</p>
-            <p class="text-xl font-bold text-green-400" id="detailMatched">-</p>
+          <div class="bg-green-500/5 border border-green-500/20 rounded-xl p-3 shadow-card">
+            <p class="text-xs font-medium uppercase tracking-wider text-gray-400">Matched</p>
+            <p class="text-xl font-bold text-green-400 mt-1 tabular-nums" id="detailMatched">-</p>
           </div>
-          <div class="bg-red-900/30 rounded-lg p-3">
-            <p class="text-xs text-gray-400">Unmatched</p>
-            <p class="text-xl font-bold text-red-400" id="detailMissing">-</p>
+          <div class="bg-red-500/5 border border-red-500/20 rounded-xl p-3 shadow-card">
+            <p class="text-xs font-medium uppercase tracking-wider text-gray-400">Unmatched</p>
+            <p class="text-xl font-bold text-red-400 mt-1 tabular-nums" id="detailMissing">-</p>
           </div>
-          <div class="bg-purple-900/30 rounded-lg p-3">
-            <p class="text-xs text-gray-400">Total Value</p>
-            <p class="text-xl font-bold text-purple-400" id="detailValue">-</p>
+          <div class="bg-purple-500/5 border border-purple-500/20 rounded-xl p-3 shadow-card">
+            <p class="text-xs font-medium uppercase tracking-wider text-gray-400">Total Value</p>
+            <p class="text-xl font-bold text-purple-400 mt-1 tabular-nums" id="detailValue">-</p>
           </div>
         </div>
         <!-- Tabs -->
         <div class="flex gap-2 mb-4">
-          <button id="tabAll" onclick="window.switchTab('all')" class="px-3 py-1 text-sm rounded-full bg-purple-600 text-white">All</button>
-          <button id="tabMatched" onclick="window.switchTab('matched')" class="px-3 py-1 text-sm rounded-full bg-gray-700 text-gray-300 hover:bg-gray-600">Matched</button>
-          <button id="tabMissing" onclick="window.switchTab('missing')" class="px-3 py-1 text-sm rounded-full bg-gray-700 text-gray-300 hover:bg-gray-600">Unmatched</button>
+          <button id="tabAll" onclick="window.switchTab('all')" class="px-3 py-1.5 text-sm font-medium rounded-full border border-transparent bg-purple-600 text-white transition-colors">All</button>
+          <button id="tabMatched" onclick="window.switchTab('matched')" class="px-3 py-1.5 text-sm font-medium rounded-full border border-gray-700 bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-200 transition-colors">Matched</button>
+          <button id="tabMissing" onclick="window.switchTab('missing')" class="px-3 py-1.5 text-sm font-medium rounded-full border border-gray-700 bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-200 transition-colors">Unmatched</button>
         </div>
         <!-- Filters -->
         <div class="flex flex-wrap items-center gap-3 mb-3">
           <div class="flex items-center gap-2">
-            <label for="companyFilter" class="text-sm text-gray-400">Company</label>
-            <select id="companyFilter" class="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm min-w-[12rem]">
+            <label for="companyFilter" class="text-xs text-gray-500">Company</label>
+            <select id="companyFilter" class="px-3 py-2 bg-gray-800/70 border border-gray-700 rounded-lg text-white text-sm min-w-[12rem] focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent">
               <option value="all">All companies</option>
             </select>
           </div>
           <div class="flex items-center gap-2">
-            <label for="pnlFilter" class="text-sm text-gray-400">P&L</label>
-            <select id="pnlFilter" class="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+            <label for="pnlFilter" class="text-xs text-gray-500">P&L</label>
+            <select id="pnlFilter" class="px-3 py-2 bg-gray-800/70 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent">
               <option value="all">All</option>
               <option value="profit">Profit &gt; 0</option>
               <option value="loss">Profit &lt; 0</option>
@@ -108,30 +108,30 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
           </div>
         </div>
         <!-- Table -->
-        <div class="overflow-auto flex-1">
+        <div class="overflow-auto flex-1 rounded-xl border border-gray-700/60 bg-gray-800/40">
           <table class="w-full text-sm">
-            <thead class="bg-gray-700 sticky top-0">
+            <thead class="bg-gray-800 sticky top-0">
               <tr>
-                <th class="px-3 py-2 text-left text-gray-300">Barcode</th>
-                <th class="px-3 py-2 text-left text-gray-300">Title</th>
-                <th class="px-3 py-2 text-left text-gray-300">Company</th>
-                <th class="px-3 py-2 text-right text-gray-300">Order Qty</th>
-                <th class="px-3 py-2 text-right text-gray-300">Amazon Cost</th>
-                <th class="px-3 py-2 text-right text-gray-300">Provider Cost</th>
-                <th class="px-3 py-2 text-right text-gray-300">P&L</th>
-                <th class="px-3 py-2 text-center text-gray-300">Status</th>
+                <th class="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">Barcode</th>
+                <th class="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">Title</th>
+                <th class="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">Company</th>
+                <th class="px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-400">Order Qty</th>
+                <th class="px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-400">Amazon Cost</th>
+                <th class="px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-400">Provider Cost</th>
+                <th class="px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-400">P&L</th>
+                <th class="px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-gray-400">Status</th>
               </tr>
             </thead>
             <tbody id="batchDetailTableBody">
-              <tr><td colspan="8" class="px-4 py-6 text-center text-gray-400">Loading...</td></tr>
+              <tr><td colspan="8" class="px-4 py-6 text-center text-gray-500 text-sm animate-pulse">Loading...</td></tr>
             </tbody>
-            <tfoot id="batchDetailTableFoot" class="bg-gray-800/40">
+            <tfoot id="batchDetailTableFoot" class="bg-gray-800/80 border-t border-gray-700/60">
               <tr>
-                <td class="px-3 py-2 text-right text-gray-300" colspan="3">Totals</td>
-                <td class="px-3 py-2 text-right text-white" id="totalOrderQty">0</td>
-                <td class="px-3 py-2 text-right text-white" id="totalAmazonCost">$0.00</td>
-                <td class="px-3 py-2 text-right text-white" id="totalProviderCost">$0.00</td>
-                <td class="px-3 py-2 text-right text-white" id="totalProfitLoss">0.00</td>
+                <td class="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-gray-400" colspan="3">Totals</td>
+                <td class="px-3 py-2 text-right font-semibold text-white tabular-nums" id="totalOrderQty">0</td>
+                <td class="px-3 py-2 text-right font-semibold text-white tabular-nums" id="totalAmazonCost">$0.00</td>
+                <td class="px-3 py-2 text-right font-semibold text-white tabular-nums" id="totalProviderCost">$0.00</td>
+                <td class="px-3 py-2 text-right font-semibold text-white tabular-nums" id="totalProfitLoss">0.00</td>
                 <td class="px-3 py-2"></td>
               </tr>
             </tfoot>
@@ -141,28 +141,28 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
     </div>
 
     <!-- Create Batch Modal -->
-    <div id="createModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center">
-      <div class="bg-gray-800 rounded-xl p-6 w-full max-w-lg mx-4">
-        <h2 class="text-xl font-bold text-white mb-4">Create Order Batch</h2>
+    <div id="createModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center">
+      <div class="bg-gray-900 border border-gray-800 rounded-2xl shadow-modal p-6 w-full max-w-lg mx-4">
+        <h2 class="text-lg font-semibold text-white mb-4">Create Order Batch</h2>
         <form id="createForm" class="space-y-4">
           <div>
             <label class="block text-sm text-gray-400 mb-1">Batch Name *</label>
             <input type="text" name="name" required placeholder="e.g. March 2025 Order"
-              class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none" />
+              class="w-full px-3 py-2 bg-gray-800/70 border border-gray-700 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
           </div>
           <div>
             <label class="block text-sm text-gray-400 mb-1">PO Number</label>
             <input type="text" name="po_number" placeholder="e.g. PO-2025-001"
-              class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none" />
+              class="w-full px-3 py-2 bg-gray-800/70 border border-gray-700 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
           </div>
           <div>
             <label class="block text-sm text-gray-400 mb-1">Notes</label>
             <textarea name="notes" rows="3" placeholder="Optional notes..."
-              class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"></textarea>
+              class="w-full px-3 py-2 bg-gray-800/70 border border-gray-700 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"></textarea>
           </div>
           <div class="flex justify-end gap-3 pt-2">
-            <button type="button" id="closeCreateModal" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-500">Cancel</button>
-            <button type="submit" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">Create Batch</button>
+            <button type="button" id="closeCreateModal" class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 text-sm font-medium rounded-lg transition-colors">Cancel</button>
+            <button type="submit" class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold rounded-lg transition-colors shadow-card">Create Batch</button>
           </div>
         </form>
       </div>
@@ -174,12 +174,12 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
   import * as XLSX from 'xlsx';
 
   const statusColors: Record<string, string> = {
-    draft: 'bg-gray-700 text-gray-300',
-    availability_sent: 'bg-blue-900/30 text-blue-300',
-    po_sent: 'bg-purple-900/30 text-purple-300',
-    partially_delivered: 'bg-yellow-900/30 text-yellow-300',
-    completed: 'bg-green-900/30 text-green-300',
-    cancelled: 'bg-red-900/30 text-red-300',
+    draft: 'bg-gray-500/10 text-gray-300 ring-1 ring-inset ring-gray-500/30',
+    availability_sent: 'bg-blue-500/10 text-blue-300 ring-1 ring-inset ring-blue-500/30',
+    po_sent: 'bg-purple-500/10 text-purple-300 ring-1 ring-inset ring-purple-500/30',
+    partially_delivered: 'bg-yellow-500/10 text-yellow-300 ring-1 ring-inset ring-yellow-500/30',
+    completed: 'bg-green-500/10 text-green-300 ring-1 ring-inset ring-green-500/30',
+    cancelled: 'bg-red-500/10 text-red-300 ring-1 ring-inset ring-red-500/30',
   };
 
   async function loadBatches() {
@@ -198,16 +198,16 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
     if (!container) return;
 
     if (batches.length === 0) {
-      container.innerHTML = '<div class="text-center text-gray-400 py-8">No order batches found. Create one to get started.</div>';
+      container.innerHTML = '<div class="py-12 text-center"><svg class="w-10 h-10 mx-auto text-gray-600 mb-3" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 13V7a2 2 0 0 0-1-1.73l-6-3.5a2 2 0 0 0-2 0l-6 3.5A2 2 0 0 0 4 7v10a2 2 0 0 0 1 1.73l6 3.5a2 2 0 0 0 2 0l6-3.5A2 2 0 0 0 20 17v-4Zm-15.5-7 7.5 4.4 7.5-4.4M12 22V10.4"/></svg><p class="text-gray-400 text-sm">No order batches found. Create one to get started.</p></div>';
       return;
     }
 
     container.innerHTML = batches.map(b => `
-      <div class="bg-gray-800 rounded-lg p-5 border border-gray-700 hover:border-gray-600 transition-colors">
+      <div class="bg-gray-800/60 rounded-xl p-5 border border-gray-700/60 shadow-card hover:border-gray-600 transition-colors">
         <div class="flex justify-between items-start">
           <div>
             <h3 class="text-lg font-semibold text-white">${b.name}</h3>
-            <p class="text-sm text-gray-400 mt-1">
+            <p class="text-sm text-gray-400 mt-1 tabular-nums">
               ${b.po_number ? `PO: ${b.po_number} · ` : ''}
               ${b.total_items} items · $${Number(b.total_value || 0).toFixed(2)}
             </p>
@@ -215,25 +215,25 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
             <p class="text-xs text-gray-500 mt-2">Created: ${new Date(b.created_at).toLocaleDateString()}</p>
           </div>
           <div class="flex items-center gap-3">
-            <span class="px-3 py-1 text-xs rounded-full ${statusColors[b.status] || 'bg-gray-700 text-gray-300'}">
+            <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${statusColors[b.status] || 'bg-gray-500/10 text-gray-300 ring-1 ring-inset ring-gray-500/30'}">
               ${b.status.replace(/_/g, ' ')}
             </span>
-            <button onclick="window.viewBatchItems('${b.id}', '${b.name.replace(/'/g, "\\'")}}')" class="text-sm text-purple-400 hover:text-purple-300">View Items →</button>
+            <button onclick="window.viewBatchItems('${b.id}', '${b.name.replace(/'/g, "\\'")}}')" class="text-sm font-medium text-purple-400 hover:text-purple-300 transition-colors">View Items →</button>
           </div>
         </div>
-        <div class="flex gap-3 mt-4 pt-3 border-t border-gray-700">
+        <div class="flex flex-wrap items-center gap-2 mt-4 pt-3 border-t border-gray-700/60">
           ${b.status === 'draft' ? `
-            <button onclick="window.openUpload('${b.id}')" class="text-sm text-purple-400 hover:text-purple-300">Upload Orders</button>
-            <button onclick="window.sendAvailability('${b.id}')" class="text-sm text-blue-400 hover:text-blue-300" ${b.total_items === 0 ? 'disabled title="Upload orders first"' : ''}>Send Availability Requests</button>
+            <button onclick="window.openUpload('${b.id}')" class="inline-flex items-center justify-center gap-2 px-2.5 py-1.5 text-xs font-medium rounded-lg text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 transition-colors">Upload Orders</button>
+            <button onclick="window.sendAvailability('${b.id}')" class="inline-flex items-center justify-center gap-2 px-2.5 py-1.5 text-xs font-medium rounded-lg text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" ${b.total_items === 0 ? 'disabled title="Upload orders first"' : ''}>Send Availability Requests</button>
           ` : ''}
           ${b.status === 'availability_sent' ? `
-            <button onclick="window.generatePOs('${b.id}')" class="text-sm text-purple-400 hover:text-purple-300">Generate Purchase Orders</button>
-            <a href="/availability?batch_id=${b.id}" class="text-sm text-green-400 hover:text-green-300">View Responses</a>
+            <button onclick="window.generatePOs('${b.id}')" class="inline-flex items-center justify-center gap-2 px-2.5 py-1.5 text-xs font-medium rounded-lg text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 transition-colors">Generate Purchase Orders</button>
+            <a href="/availability?batch_id=${b.id}" class="inline-flex items-center justify-center gap-2 px-2.5 py-1.5 text-xs font-medium rounded-lg text-green-300 bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 transition-colors">View Responses</a>
           ` : ''}
           ${['po_sent', 'partially_delivered'].includes(b.status) ? `
-            <a href="/deliveries?batch_id=${b.id}" class="text-sm text-yellow-400 hover:text-yellow-300">Track Deliveries</a>
+            <a href="/deliveries?batch_id=${b.id}" class="inline-flex items-center justify-center gap-2 px-2.5 py-1.5 text-xs font-medium rounded-lg text-yellow-300 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/30 transition-colors">Track Deliveries</a>
           ` : ''}
-          <button onclick="window.deleteBatch('${b.id}')" class="text-sm text-red-400 hover:text-red-300 ml-auto">Delete</button>
+          <button onclick="window.deleteBatch('${b.id}')" class="inline-flex items-center justify-center gap-2 px-2.5 py-1.5 text-xs font-medium rounded-lg text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 transition-colors ml-auto">Delete</button>
         </div>
       </div>
     `).join('');
@@ -446,7 +446,7 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
       if (items.length === 0) {
         progress.classList.add('hidden');
         result.classList.remove('hidden');
-        result.innerHTML = '<span class="text-red-400">No valid rows found. Check that the file has a barcode column.</span>';
+        result.innerHTML = '<span class="text-red-300">No valid rows found. Check that the file has a barcode column.</span>';
         return;
       }
       
@@ -465,14 +465,16 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
       progress.classList.add('hidden');
       result.classList.remove('hidden');
       if (!resp.ok) {
-        result.innerHTML = `<span class="text-red-400">Error: ${json.error || 'Upload failed'}</span>`;
+        result.innerHTML = `<span class="text-red-300">Error: ${json.error || 'Upload failed'}</span>`;
         return;
       }
       result.innerHTML = `
-        <div class="text-green-400 font-semibold">✓ Upload complete!</div>
-        <div class="text-gray-300 mt-1">${json.saved} items saved — <span class="text-green-400">${json.matched} matched</span>, <span class="text-red-400">${json.missing} unmatched</span>.</div>
-        ${json.errors?.length ? `<div class="text-red-400 text-xs mt-1">${json.errors.length} insert error(s)</div>` : ''}
-        <div class="text-gray-500 text-xs mt-2">Closing in 3 seconds…</div>
+        <div class="p-3 rounded-lg bg-green-500/10 ring-1 ring-inset ring-green-500/30">
+          <div class="text-green-300 font-semibold">✓ Upload complete!</div>
+          <div class="text-gray-300 mt-1 tabular-nums">${json.saved} items saved — <span class="text-green-300">${json.matched} matched</span>, <span class="text-red-300">${json.missing} unmatched</span>.</div>
+          ${json.errors?.length ? `<div class="text-red-300 text-xs mt-1">${json.errors.length} insert error(s)</div>` : ''}
+          <div class="text-gray-500 text-xs mt-2">Closing in 3 seconds…</div>
+        </div>
       `;
       // Hide the upload button to prevent double-submit
       (document.getElementById('startOrdersUpload') as HTMLButtonElement).disabled = true;
@@ -486,7 +488,7 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
     } catch (err: any) {
       progress.classList.add('hidden');
       result.classList.remove('hidden');
-      result.innerHTML = `<span class="text-red-400">${err?.message || 'Failed to parse file'}</span>`;
+      result.innerHTML = `<span class="text-red-300">${err?.message || 'Failed to parse file'}</span>`;
     }
   });
 
@@ -500,11 +502,11 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
     document.getElementById('batchDetailTitle')!.textContent = batchName || 'Batch Items';
     document.getElementById('batchDetailModal')?.classList.remove('hidden');
     const tbody = document.getElementById('batchDetailTableBody')!;
-    tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-6 text-center text-gray-400">Loading…</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-6 text-center text-gray-500 text-sm animate-pulse">Loading…</td></tr>';
 
     const resp = await fetch(`/api/order-items?batch_id=${batchId}`);
     if (!resp.ok) {
-      tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-6 text-center text-red-400">Failed to load items.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-6 text-center text-red-300 text-sm">Failed to load items.</td></tr>';
       return;
     }
     const { data } = await resp.json();
@@ -541,8 +543,8 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
     ['all', 'matched', 'missing'].forEach(t => {
       const btn = document.getElementById(`tab${t.charAt(0).toUpperCase() + t.slice(1)}`)!;
       btn.className = t === tab
-        ? 'px-3 py-1 text-sm rounded-full bg-purple-600 text-white'
-        : 'px-3 py-1 text-sm rounded-full bg-gray-700 text-gray-300 hover:bg-gray-600';
+        ? 'px-3 py-1.5 text-sm font-medium rounded-full border border-transparent bg-purple-600 text-white transition-colors'
+        : 'px-3 py-1.5 text-sm font-medium rounded-full border border-gray-700 bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-200 transition-colors';
     });
     renderBatchItems();
   };
@@ -582,7 +584,7 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
 
     const tbody = document.getElementById('batchDetailTableBody')!;
     if (items.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-6 text-center text-gray-400">No items in this view.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-12 text-center text-gray-400 text-sm">No items in this view.</td></tr>';
       // Reset totals footer
       (document.getElementById('totalOrderQty') as HTMLElement).textContent = '0';
       (document.getElementById('totalAmazonCost') as HTMLElement).textContent = '$0.00';
@@ -592,19 +594,19 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
     }
 
     tbody.innerHTML = items.map((item: any) => `
-      <tr class="border-b border-gray-700/50 hover:bg-gray-700/20">
+      <tr class="border-t border-gray-700/40 hover:bg-gray-800/40 transition-colors">
         <td class="px-3 py-2 text-white font-mono text-xs">${item.barcode}</td>
         <td class="px-3 py-2 text-gray-300 truncate max-w-xs">${item.title || '-'}</td>
         <td class="px-3 py-2 text-gray-400 text-xs">${item.company?.name || '-'}</td>
-        <td class="px-3 py-2 text-right text-white">${item.order_qty}</td>
-        <td class="px-3 py-2 text-right text-white">$${Number(item.amazon_cost).toFixed(2)}</td>
-        <td class="px-3 py-2 text-right text-white">$${Number(item.provider_cost).toFixed(2)}</td>
-        <td class="px-3 py-2 text-right ${
+        <td class="px-3 py-2 text-right text-white tabular-nums">${item.order_qty}</td>
+        <td class="px-3 py-2 text-right text-white tabular-nums">$${Number(item.amazon_cost).toFixed(2)}</td>
+        <td class="px-3 py-2 text-right text-white tabular-nums">$${Number(item.provider_cost).toFixed(2)}</td>
+        <td class="px-3 py-2 text-right tabular-nums ${
           item.profit_loss > 0 ? 'text-green-400' : item.profit_loss < 0 ? 'text-red-400' : 'text-gray-400'
         }">${Number(item.profit_loss).toFixed(2)} (${Number(item.profit_loss_pct).toFixed(1)}%)</td>
         <td class="px-3 py-2 text-center">
-          <span class="px-2 py-0.5 text-xs rounded-full ${
-            item.match_status === 'matched' ? 'bg-green-900/30 text-green-300' : 'bg-red-900/30 text-red-400'
+          <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${
+            item.match_status === 'matched' ? 'bg-green-500/10 text-green-300 ring-1 ring-inset ring-green-500/30' : 'bg-red-500/10 text-red-300 ring-1 ring-inset ring-red-500/30'
           }">${item.match_status}</span>
         </td>
       </tr>

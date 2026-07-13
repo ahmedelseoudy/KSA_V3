@@ -1,5 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import PageHeader from '../../components/ui/PageHeader.astro';
+import StatCard from '../../components/ui/StatCard.astro';
 
 const user = Astro.locals.user;
 const profile = (user as any)?.profile;
@@ -7,35 +9,83 @@ const profile = (user as any)?.profile;
 if (!profile || profile.role !== 'company') {
   return Astro.redirect('/dashboard');
 }
+
+const quickLinks = [
+  {
+    href: '/portal/availability',
+    title: 'Availability Requests',
+    description: 'Respond to item availability requests from your buyer.',
+    icon: 'clipboard',
+  },
+  {
+    href: '/portal/purchase-orders',
+    title: 'Purchase Orders',
+    description: 'Review, confirm, and track your purchase orders.',
+    icon: 'document',
+  },
+  {
+    href: '/portal/deliveries',
+    title: 'Deliveries',
+    description: 'Track delivery progress and item-level status per PO.',
+    icon: 'truck',
+  },
+  {
+    href: '/portal/comparison',
+    title: 'Comparison',
+    description: 'Compare requested vs. available vs. delivered quantities.',
+    icon: 'chart',
+  },
+];
 ---
 
 <Layout title="Company Portal - KSA CRM">
-  <div class="max-w-5xl mx-auto">
-    <h1 class="text-2xl font-bold text-white mb-6">Welcome to your Portal</h1>
+  <div class="max-w-7xl mx-auto">
+    <PageHeader title="Welcome to your Portal" subtitle="Your availability requests, purchase orders, and deliveries at a glance" />
 
     <!-- Summary Cards -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-      <div class="bg-gray-800 rounded-lg p-5 border border-gray-700">
-        <p class="text-gray-400 text-sm">Pending Availability</p>
-        <p class="text-3xl font-bold text-blue-400 mt-1" id="pendingAvail">-</p>
-        <a href="/portal/availability" class="text-xs text-blue-400 hover:text-blue-300 mt-2 block">View requests →</a>
-      </div>
-      <div class="bg-gray-800 rounded-lg p-5 border border-gray-700">
-        <p class="text-gray-400 text-sm">Active Purchase Orders</p>
-        <p class="text-3xl font-bold text-purple-400 mt-1" id="activePOs">-</p>
-        <a href="/portal/purchase-orders" class="text-xs text-purple-400 hover:text-purple-300 mt-2 block">View orders →</a>
-      </div>
-      <div class="bg-gray-800 rounded-lg p-5 border border-gray-700">
-        <p class="text-gray-400 text-sm">Total Products</p>
-        <p class="text-3xl font-bold text-green-400 mt-1" id="totalProds">-</p>
-      </div>
+      <StatCard label="Pending Availability" valueId="pendingAvail" valueClass="text-blue-400" />
+      <StatCard label="Active Purchase Orders" valueId="activePOs" valueClass="text-purple-400" />
+      <StatCard label="Total Products" valueId="totalProds" valueClass="text-green-400" />
     </div>
 
-    <!-- Recent Activity -->
-    <div class="bg-gray-800 rounded-lg p-5 border border-gray-700">
-      <h2 class="text-lg font-semibold text-white mb-4">Recent Activity</h2>
-      <div id="activityList" class="space-y-3">
-        <p class="text-gray-400 text-sm">Loading...</p>
+    <!-- Quick Links -->
+    <div class="bg-gray-800/60 border border-gray-700/60 rounded-xl shadow-card p-5">
+      <h2 class="text-lg font-semibold text-white mb-4">Quick links</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {quickLinks.map((link) => (
+          <a
+            href={link.href}
+            class="group flex items-start gap-4 p-4 rounded-xl border border-gray-700/60 bg-gray-800/40 hover:bg-gray-800 hover:border-purple-500/40 transition-colors"
+          >
+            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-purple-500/10 text-purple-300 ring-1 ring-inset ring-purple-500/30">
+              {link.icon === 'clipboard' && (
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6M9 4.5h6a2.25 2.25 0 0 1 2.25 2.25v.75H6.75v-.75A2.25 2.25 0 0 1 9 4.5Zm-3.75 3h13.5A1.5 1.5 0 0 1 20.25 9v10.5a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5V9a1.5 1.5 0 0 1 1.5-1.5Z" />
+                </svg>
+              )}
+              {link.icon === 'document' && (
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 12h3m-3 3h3m-6-6h.008v.008H7.5v-.008Zm0 3h.008v.008H7.5v-.008Zm0 3h.008v.008H7.5v-.008ZM10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                </svg>
+              )}
+              {link.icon === 'truck' && (
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
+                </svg>
+              )}
+              {link.icon === 'chart' && (
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+                </svg>
+              )}
+            </span>
+            <span class="min-w-0">
+              <span class="block text-sm font-semibold text-white group-hover:text-purple-300 transition-colors">{link.title}</span>
+              <span class="block text-xs text-gray-400 mt-0.5">{link.description}</span>
+            </span>
+          </a>
+        ))}
       </div>
     </div>
   </div>
@@ -67,12 +117,6 @@ if (!profile || profile.role !== 'company') {
       const { count } = await prodResp.json();
       const el = document.getElementById('totalProds');
       if (el) el.textContent = String(count || 0);
-    }
-
-    // Activity list
-    const activityEl = document.getElementById('activityList');
-    if (activityEl) {
-      activityEl.innerHTML = '<p class="text-gray-500 text-sm">No recent activity</p>';
     }
   }
 

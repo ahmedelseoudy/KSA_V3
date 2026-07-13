@@ -17,7 +17,7 @@ let inviteEmail = email || '';
 
 try {
   const { supabase } = await import('../lib/supabase');
-  
+
   const { data: invitation, error } = await supabase
     .from('invitations')
     .select('*')
@@ -35,26 +35,26 @@ try {
 if (!inviteValid) {
   return Astro.redirect('/login?error=invalid-invite');
 }
+
+const inputClass = 'block w-full px-3.5 py-2.5 rounded-xl bg-gray-800/70 border border-gray-700 text-white placeholder-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-shadow';
 ---
 
-<AuthLayout title="Register - KSA V2">
-  <div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-md w-full space-y-8">
-      <div>
-        <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
-          Create your account
-        </h2>
-        <p class="mt-2 text-center text-sm text-gray-600">
-          Complete your registration to access KSA V2
-        </p>
+<AuthLayout title="Create account - KSA CRM">
+  <div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full">
+
+      <div class="flex flex-col items-center mb-8">
+        <div class="flex items-center justify-center w-12 h-12 rounded-2xl bg-purple-600 text-white font-bold text-xl shadow-modal mb-4">K</div>
+        <h1 class="text-2xl font-bold tracking-tight text-white">Create your account</h1>
+        <p class="mt-1.5 text-sm text-gray-400">Complete your registration to access KSA CRM</p>
       </div>
 
-      <form class="mt-8 space-y-6" id="registerForm">
-        <input type="hidden" name="inviteCode" value={inviteCode} />
-        
-        <div class="rounded-md shadow-sm space-y-4">
+      <div class="bg-gray-900/80 border border-gray-800 rounded-2xl p-8 shadow-modal backdrop-blur">
+        <form class="space-y-5" id="registerForm">
+          <input type="hidden" name="inviteCode" value={inviteCode} />
+
           <div>
-            <label for="email" class="block text-sm font-medium text-gray-700">Email address</label>
+            <label for="email" class="block text-sm font-medium text-gray-300 mb-1.5">Email address</label>
             <input
               id="email"
               name="email"
@@ -63,26 +63,26 @@ if (!inviteValid) {
               required
               readonly
               value={inviteEmail}
-              class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md bg-gray-50 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              class={`${inputClass} opacity-60 cursor-not-allowed`}
             />
-            <p class="mt-1 text-xs text-gray-500">This email was invited to join the system</p>
+            <p class="mt-1.5 text-xs text-gray-500">This email was invited to join the system</p>
           </div>
 
           <div>
-            <label for="fullName" class="block text-sm font-medium text-gray-700">Full Name</label>
+            <label for="fullName" class="block text-sm font-medium text-gray-300 mb-1.5">Full name</label>
             <input
               id="fullName"
               name="fullName"
               type="text"
               autocomplete="name"
               required
-              class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              class={inputClass}
               placeholder="Enter your full name"
             />
           </div>
 
           <div>
-            <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+            <label for="password" class="block text-sm font-medium text-gray-300 mb-1.5">Password</label>
             <input
               id="password"
               name="password"
@@ -90,14 +90,14 @@ if (!inviteValid) {
               autocomplete="new-password"
               required
               minlength="6"
-              class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              class={inputClass}
               placeholder="Choose a secure password"
             />
-            <p class="mt-1 text-xs text-gray-500">Minimum 6 characters</p>
+            <p class="mt-1.5 text-xs text-gray-500">Minimum 6 characters</p>
           </div>
 
           <div>
-            <label for="confirmPassword" class="block text-sm font-medium text-gray-700">Confirm Password</label>
+            <label for="confirmPassword" class="block text-sm font-medium text-gray-300 mb-1.5">Confirm password</label>
             <input
               id="confirmPassword"
               name="confirmPassword"
@@ -105,62 +105,43 @@ if (!inviteValid) {
               autocomplete="new-password"
               required
               minlength="6"
-              class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              class={inputClass}
               placeholder="Confirm your password"
             />
           </div>
-        </div>
 
-        <div id="error-message" class="hidden bg-red-50 border border-red-200 rounded-md p-4">
-          <div class="flex">
-            <div class="ml-3">
-              <h3 class="text-sm font-medium text-red-800" id="error-text">
-                <!-- Error message will be inserted here -->
-              </h3>
-            </div>
+          <div id="error-message" class="hidden bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3">
+            <h3 class="text-sm font-medium text-red-300" id="error-text">
+              <!-- Error message will be inserted here -->
+            </h3>
           </div>
-        </div>
 
-        <div id="success-message" class="hidden bg-green-50 border border-green-200 rounded-md p-4">
-          <div class="flex">
-            <div class="ml-3">
-              <h3 class="text-sm font-medium text-green-800">
-                Registration successful! Your account is pending approval.
-              </h3>
-              <p class="mt-1 text-sm text-green-700">
-                You will receive an email notification once your account is approved.
-              </p>
-            </div>
+          <div id="success-message" class="hidden bg-green-500/10 border border-green-500/30 rounded-xl px-4 py-3">
+            <h3 class="text-sm font-medium text-green-300">
+              Registration successful! Your account is pending approval.
+            </h3>
+            <p class="mt-1 text-sm text-green-400/80">
+              You will receive an email notification once your account is approved.
+            </p>
           </div>
-        </div>
 
-        <div>
           <button
             type="submit"
-            class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            class="w-full flex justify-center items-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold text-white bg-purple-600 hover:bg-purple-500 active:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-card"
             id="submitButton"
           >
-            <span class="absolute left-0 inset-y-0 flex items-center pl-3">
-              <svg class="h-5 w-5 text-indigo-500 group-hover:text-indigo-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                <path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 7a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V7z" />
-              </svg>
-            </span>
             <span id="button-text">Create Account</span>
           </button>
-        </div>
 
-        <div class="text-center">
-          <p class="text-sm text-gray-600">
-            Already have an account? 
-            <a href="/login" class="font-medium text-indigo-600 hover:text-indigo-500">
-              Sign in here
-            </a>
+          <p class="text-center text-sm text-gray-400">
+            Already have an account?
+            <a href="/login" class="font-medium text-purple-400 hover:text-purple-300">Sign in here</a>
           </p>
-        </div>
-      </form>
+        </form>
+      </div>
     </div>
   </div>
-</Layout>
+</AuthLayout>
 
 <script>
   import { supabase } from '../lib/supabase';
@@ -288,7 +269,7 @@ if (!inviteValid) {
           .eq('id', invitation.id);
 
         showSuccess();
-        
+
         // Redirect to waiting approval page after 3 seconds
         setTimeout(() => {
           window.location.href = '/waiting-approval';
@@ -296,7 +277,7 @@ if (!inviteValid) {
       }
     } catch (error: any) {
       console.error('Registration error:', error);
-      
+
       let message = 'An error occurred during registration';
       if (error.message.includes('User already registered')) {
         message = 'An account with this email already exists';
@@ -305,11 +286,10 @@ if (!inviteValid) {
       } else if (error.message) {
         message = error.message;
       }
-      
+
       showError(message);
     } finally {
       setLoading(false);
     }
   });
 </script>
-</AuthLayout>

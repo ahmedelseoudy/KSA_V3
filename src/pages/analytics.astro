@@ -1,5 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import PageHeader from '../components/ui/PageHeader.astro';
+import StatCard from '../components/ui/StatCard.astro';
 
 const user = Astro.locals.user;
 const profile = (user as any)?.profile;
@@ -11,63 +13,48 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
 
 <Layout title="Analytics - KSA CRM">
   <div class="max-w-7xl mx-auto">
-    <h1 class="text-2xl font-bold text-white mb-6">Business Analytics</h1>
+    <PageHeader title="Business Analytics" subtitle="Revenue, availability and delivery performance across companies" />
 
     <!-- KPI Cards -->
     <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-      <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
-        <p class="text-gray-400 text-xs uppercase">Total Revenue</p>
-        <p class="text-xl font-bold text-white mt-1" id="totalRevenue">-</p>
-      </div>
-      <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
-        <p class="text-gray-400 text-xs uppercase">Total Orders</p>
-        <p class="text-xl font-bold text-white mt-1" id="totalOrders">-</p>
-      </div>
-      <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
-        <p class="text-gray-400 text-xs uppercase">Active Companies</p>
-        <p class="text-xl font-bold text-white mt-1" id="activeCompanies">-</p>
-      </div>
-      <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
-        <p class="text-gray-400 text-xs uppercase">Avg Availability Rate</p>
-        <p class="text-xl font-bold text-green-400 mt-1" id="avgAvailRate">-</p>
-      </div>
-      <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
-        <p class="text-gray-400 text-xs uppercase">Delivery Rate</p>
-        <p class="text-xl font-bold text-blue-400 mt-1" id="deliveryRate">-</p>
-      </div>
+      <StatCard label="Total Revenue" valueId="totalRevenue" valueClass="text-white" />
+      <StatCard label="Total Orders" valueId="totalOrders" valueClass="text-white" />
+      <StatCard label="Active Companies" valueId="activeCompanies" valueClass="text-white" />
+      <StatCard label="Avg Availability Rate" valueId="avgAvailRate" valueClass="text-green-400" />
+      <StatCard label="Delivery Rate" valueId="deliveryRate" valueClass="text-blue-400" />
     </div>
 
     <!-- Charts Row -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-      <div class="bg-gray-800 rounded-lg p-5 border border-gray-700">
+      <div class="bg-gray-800/60 rounded-xl p-5 border border-gray-700/60 shadow-card">
         <h3 class="text-white font-semibold mb-4">Orders by Company</h3>
         <canvas id="companyChart" height="250"></canvas>
       </div>
-      <div class="bg-gray-800 rounded-lg p-5 border border-gray-700">
+      <div class="bg-gray-800/60 rounded-xl p-5 border border-gray-700/60 shadow-card">
         <h3 class="text-white font-semibold mb-4">Profit/Loss by Batch</h3>
         <canvas id="profitChart" height="250"></canvas>
       </div>
     </div>
 
     <!-- Company Performance Table -->
-    <div class="bg-gray-800 rounded-lg border border-gray-700">
-      <div class="p-4 border-b border-gray-700">
+    <div class="bg-gray-800/60 rounded-xl border border-gray-700/60 shadow-card">
+      <div class="px-5 py-4 border-b border-gray-700/60">
         <h2 class="text-lg font-semibold text-white">Company Performance</h2>
       </div>
-      <div class="overflow-x-auto">
+      <div class="overflow-x-auto rounded-b-xl bg-gray-800/40">
         <table class="w-full text-sm">
-          <thead class="bg-gray-700/50">
+          <thead>
             <tr>
-              <th class="px-4 py-3 text-left text-gray-300">Company</th>
-              <th class="px-4 py-3 text-right text-gray-300">Products</th>
-              <th class="px-4 py-3 text-right text-gray-300">Total PO Value</th>
-              <th class="px-4 py-3 text-right text-gray-300">Availability Rate</th>
-              <th class="px-4 py-3 text-right text-gray-300">Delivery Rate</th>
-              <th class="px-4 py-3 text-center text-gray-300">Status</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Company</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Products</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Total PO Value</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Availability Rate</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Delivery Rate</th>
+              <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Status</th>
             </tr>
           </thead>
           <tbody id="performanceTable">
-            <tr><td colspan="6" class="px-4 py-6 text-center text-gray-400">Loading...</td></tr>
+            <tr><td colspan="6" class="px-4 py-6 text-center text-gray-500 text-sm animate-pulse">Loading...</td></tr>
           </tbody>
         </table>
       </div>
@@ -142,17 +129,17 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
         datasets: [{
           label: 'PO Value ($)',
           data: values,
-          backgroundColor: 'rgba(147, 51, 234, 0.5)',
-          borderColor: 'rgb(147, 51, 234)',
+          backgroundColor: 'rgba(139, 92, 246, 0.5)',
+          borderColor: '#8b5cf6',
           borderWidth: 1,
         }],
       },
       options: {
         responsive: true,
-        plugins: { legend: { labels: { color: '#9ca3af' } } },
+        plugins: { legend: { labels: { color: '#94a3b8' } } },
         scales: {
-          x: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } },
-          y: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } },
+          x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+          y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
         },
       },
     });
@@ -172,7 +159,7 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
         datasets: [{
           label: 'Batch Value ($)',
           data: values,
-          borderColor: 'rgb(59, 130, 246)',
+          borderColor: '#3b82f6',
           backgroundColor: 'rgba(59, 130, 246, 0.1)',
           fill: true,
           tension: 0.3,
@@ -180,10 +167,10 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
       },
       options: {
         responsive: true,
-        plugins: { legend: { labels: { color: '#9ca3af' } } },
+        plugins: { legend: { labels: { color: '#94a3b8' } } },
         scales: {
-          x: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } },
-          y: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } },
+          x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+          y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
         },
       },
     });
@@ -205,20 +192,20 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
       const deliveryRate = companyPOs.length > 0 ? ((deliveredCount / companyPOs.length) * 100).toFixed(0) : '-';
 
       return `
-        <tr class="border-b border-gray-700/50">
-          <td class="px-4 py-3 text-white">${c.name}</td>
-          <td class="px-4 py-3 text-right text-white">-</td>
-          <td class="px-4 py-3 text-right text-white">$${poValue.toFixed(0)}</td>
-          <td class="px-4 py-3 text-right ${Number(availRate) >= 70 ? 'text-green-400' : Number(availRate) >= 40 ? 'text-yellow-400' : 'text-red-400'}">${availRate}%</td>
-          <td class="px-4 py-3 text-right text-white">${deliveryRate}%</td>
+        <tr class="border-t border-gray-700/40 hover:bg-gray-800/40 transition-colors">
+          <td class="px-4 py-3 text-white font-medium">${c.name}</td>
+          <td class="px-4 py-3 text-right text-white tabular-nums">-</td>
+          <td class="px-4 py-3 text-right text-white tabular-nums">$${poValue.toFixed(0)}</td>
+          <td class="px-4 py-3 text-right tabular-nums ${Number(availRate) >= 70 ? 'text-green-400' : Number(availRate) >= 40 ? 'text-yellow-400' : 'text-red-400'}">${availRate}%</td>
+          <td class="px-4 py-3 text-right text-white tabular-nums">${deliveryRate}%</td>
           <td class="px-4 py-3 text-center">
-            <span class="px-2 py-0.5 text-xs rounded-full ${c.status === 'active' ? 'bg-green-900/30 text-green-300' : 'bg-gray-700 text-gray-400'}">${c.status}</span>
+            <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${c.status === 'active' ? 'bg-green-500/10 text-green-300 ring-1 ring-inset ring-green-500/30' : 'bg-gray-500/10 text-gray-300 ring-1 ring-inset ring-gray-500/30'}">${c.status}</span>
           </td>
         </tr>
       `;
     }).join('');
 
-    tbody.innerHTML = rows || '<tr><td colspan="6" class="px-4 py-6 text-center text-gray-400">No data</td></tr>';
+    tbody.innerHTML = rows || '<tr><td colspan="6" class="px-4 py-6 text-center text-gray-400 text-sm">No data</td></tr>';
   }
 
   loadAnalytics();

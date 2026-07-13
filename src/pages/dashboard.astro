@@ -1,5 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import PageHeader from '../components/ui/PageHeader.astro';
+import StatCard from '../components/ui/StatCard.astro';
 
 const user = Astro.locals.user;
 const profile = (user as any)?.profile;
@@ -12,71 +14,80 @@ if (profile?.role === 'company') {
 
 <Layout title="Dashboard - KSA CRM">
   <div class="max-w-7xl mx-auto">
-    <div class="mb-8">
-      <h1 class="text-2xl font-bold text-white">Dashboard</h1>
-      <p class="text-gray-400 mt-1">Welcome back, {user?.email}</p>
-    </div>
+    <PageHeader title="Dashboard" subtitle={`Welcome back, ${user?.email}`} />
 
     <!-- Quick Stats -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8" id="statsGrid">
-      <div class="bg-gray-800 rounded-lg p-5 border border-gray-700">
-        <p class="text-gray-400 text-sm">Order Batches</p>
-        <p class="text-3xl font-bold text-white mt-1" id="statBatches">-</p>
-      </div>
-      <div class="bg-gray-800 rounded-lg p-5 border border-gray-700">
-        <p class="text-gray-400 text-sm">Companies</p>
-        <p class="text-3xl font-bold text-blue-400 mt-1" id="statCompanies">-</p>
-      </div>
-      <div class="bg-gray-800 rounded-lg p-5 border border-gray-700">
-        <p class="text-gray-400 text-sm">Products</p>
-        <p class="text-3xl font-bold text-purple-400 mt-1" id="statProducts">-</p>
-      </div>
-      <div class="bg-gray-800 rounded-lg p-5 border border-gray-700">
-        <p class="text-gray-400 text-sm">Active POs</p>
-        <p class="text-3xl font-bold text-green-400 mt-1" id="statPOs">-</p>
-      </div>
+      <StatCard label="Order Batches" valueId="statBatches" valueClass="text-white" />
+      <StatCard label="Companies" valueId="statCompanies" valueClass="text-blue-400" />
+      <StatCard label="Products" valueId="statProducts" valueClass="text-purple-400" />
+      <StatCard label="Active POs" valueId="statPOs" valueClass="text-green-400" />
     </div>
 
     <!-- Quick Actions -->
     <h2 class="text-lg font-semibold text-white mb-4">Quick Actions</h2>
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-      <a href="/products" class="bg-gray-800 rounded-lg p-5 border border-gray-700 hover:border-purple-500/50 transition-colors group">
-        <span class="text-2xl mb-2 block">📦</span>
-        <h3 class="text-white font-semibold group-hover:text-purple-400 transition-colors">Products Database</h3>
+      <a href="/products" class="bg-gray-800/60 rounded-xl p-5 border border-gray-700/60 shadow-card hover:border-purple-500/50 hover:bg-gray-800 transition-colors group">
+        <span class="w-10 h-10 mb-3 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" />
+          </svg>
+        </span>
+        <h3 class="text-white font-semibold group-hover:text-purple-300 transition-colors">Products Database</h3>
         <p class="text-gray-400 text-sm mt-1">Upload and manage your product catalog</p>
       </a>
-      <a href="/orders" class="bg-gray-800 rounded-lg p-5 border border-gray-700 hover:border-blue-500/50 transition-colors group">
-        <span class="text-2xl mb-2 block">📋</span>
-        <h3 class="text-white font-semibold group-hover:text-blue-400 transition-colors">Order Batches</h3>
+      <a href="/orders" class="bg-gray-800/60 rounded-xl p-5 border border-gray-700/60 shadow-card hover:border-purple-500/50 hover:bg-gray-800 transition-colors group">
+        <span class="w-10 h-10 mb-3 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+        </span>
+        <h3 class="text-white font-semibold group-hover:text-purple-300 transition-colors">Order Batches</h3>
         <p class="text-gray-400 text-sm mt-1">Create and manage order batches</p>
       </a>
-      <a href="/orders" class="bg-gray-800 rounded-lg p-5 border border-gray-700 hover:border-green-500/50 transition-colors group">
-        <span class="text-2xl mb-2 block">🔄</span>
-        <h3 class="text-white font-semibold group-hover:text-green-400 transition-colors">Process Orders</h3>
+      <a href="/orders" class="bg-gray-800/60 rounded-xl p-5 border border-gray-700/60 shadow-card hover:border-purple-500/50 hover:bg-gray-800 transition-colors group">
+        <span class="w-10 h-10 mb-3 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+          </svg>
+        </span>
+        <h3 class="text-white font-semibold group-hover:text-purple-300 transition-colors">Process Orders</h3>
         <p class="text-gray-400 text-sm mt-1">Upload and process new order files</p>
       </a>
-      <a href="/availability" class="bg-gray-800 rounded-lg p-5 border border-gray-700 hover:border-yellow-500/50 transition-colors group">
-        <span class="text-2xl mb-2 block">✅</span>
-        <h3 class="text-white font-semibold group-hover:text-yellow-400 transition-colors">Availability</h3>
+      <a href="/availability" class="bg-gray-800/60 rounded-xl p-5 border border-gray-700/60 shadow-card hover:border-purple-500/50 hover:bg-gray-800 transition-colors group">
+        <span class="w-10 h-10 mb-3 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </span>
+        <h3 class="text-white font-semibold group-hover:text-purple-300 transition-colors">Availability</h3>
         <p class="text-gray-400 text-sm mt-1">Track company availability responses</p>
       </a>
-      <a href="/deliveries" class="bg-gray-800 rounded-lg p-5 border border-gray-700 hover:border-orange-500/50 transition-colors group">
-        <span class="text-2xl mb-2 block">🚚</span>
-        <h3 class="text-white font-semibold group-hover:text-orange-400 transition-colors">Deliveries</h3>
+      <a href="/deliveries" class="bg-gray-800/60 rounded-xl p-5 border border-gray-700/60 shadow-card hover:border-purple-500/50 hover:bg-gray-800 transition-colors group">
+        <span class="w-10 h-10 mb-3 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
+          </svg>
+        </span>
+        <h3 class="text-white font-semibold group-hover:text-purple-300 transition-colors">Deliveries</h3>
         <p class="text-gray-400 text-sm mt-1">Track delivery status per PO</p>
       </a>
-      <a href="/analytics" class="bg-gray-800 rounded-lg p-5 border border-gray-700 hover:border-pink-500/50 transition-colors group">
-        <span class="text-2xl mb-2 block">📊</span>
-        <h3 class="text-white font-semibold group-hover:text-pink-400 transition-colors">Analytics</h3>
+      <a href="/analytics" class="bg-gray-800/60 rounded-xl p-5 border border-gray-700/60 shadow-card hover:border-purple-500/50 hover:bg-gray-800 transition-colors group">
+        <span class="w-10 h-10 mb-3 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+          </svg>
+        </span>
+        <h3 class="text-white font-semibold group-hover:text-purple-300 transition-colors">Analytics</h3>
         <p class="text-gray-400 text-sm mt-1">Business insights and performance</p>
       </a>
     </div>
 
     <!-- Recent Activity -->
-    <div class="bg-gray-800 rounded-lg p-5 border border-gray-700">
+    <div class="bg-gray-800/60 rounded-xl p-5 border border-gray-700/60 shadow-card">
       <h2 class="text-lg font-semibold text-white mb-4">Recent Order Batches</h2>
       <div id="recentBatches" class="space-y-3">
-        <p class="text-gray-400 text-sm">Loading...</p>
+        <p class="text-gray-500 text-sm animate-pulse">Loading...</p>
       </div>
     </div>
   </div>
@@ -125,20 +136,20 @@ if (profile?.role === 'company') {
     if (!container) return;
 
     if (batches.length === 0) {
-      container.innerHTML = '<p class="text-gray-500 text-sm">No order batches yet. <a href="/orders" class="text-purple-400 hover:text-purple-300">Create one</a></p>';
+      container.innerHTML = '<p class="text-gray-400 text-sm">No order batches yet. <a href="/orders" class="text-purple-400 hover:text-purple-300 font-medium">Create one</a></p>';
       return;
     }
 
     container.innerHTML = batches.slice(0, 5).map(b => `
-      <div class="flex justify-between items-center py-2 border-b border-gray-700/50 last:border-0">
+      <div class="flex justify-between items-center py-2 border-b border-gray-700/40 last:border-0">
         <div>
           <p class="text-white text-sm font-medium">${b.name}</p>
           <p class="text-gray-500 text-xs">${b.total_items} items · ${new Date(b.created_at).toLocaleDateString()}</p>
         </div>
-        <span class="px-2 py-0.5 text-xs rounded-full ${
-          b.status === 'completed' ? 'bg-green-900/30 text-green-300' :
-          b.status === 'draft' ? 'bg-gray-700 text-gray-300' :
-          'bg-blue-900/30 text-blue-300'
+        <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${
+          b.status === 'completed' ? 'bg-green-500/10 text-green-300 ring-1 ring-inset ring-green-500/30' :
+          b.status === 'draft' ? 'bg-gray-500/10 text-gray-300 ring-1 ring-inset ring-gray-500/30' :
+          'bg-blue-500/10 text-blue-300 ring-1 ring-inset ring-blue-500/30'
         }">${b.status.replace(/_/g, ' ')}</span>
       </div>
     `).join('');

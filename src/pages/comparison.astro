@@ -1,5 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import PageHeader from '../components/ui/PageHeader.astro';
+import StatCard from '../components/ui/StatCard.astro';
 
 const user = Astro.locals.user;
 const profile = (user as any)?.profile;
@@ -12,89 +14,89 @@ const isAdmin = ['admin', 'super_admin'].includes(profile.role);
 
 <Layout title="Comparison - Availability · PO · Delivery">
   <div class="max-w-7xl mx-auto">
-    <h1 class="text-2xl font-bold text-white mb-6">Comparison</h1>
+    <PageHeader title="Comparison" subtitle="Compare requested, available, ordered, and delivered quantities across companies and purchase orders" />
 
     {isAdmin && (
       <section id="adminDashboard" class="mb-8">
-        <div class="bg-gray-800 rounded-lg border border-gray-700 mb-4">
-          <div class="p-4 border-b border-gray-700">
+        <div class="bg-gray-800/60 rounded-xl border border-gray-700/60 shadow-card mb-4">
+          <div class="p-5 border-b border-gray-700/60">
             <h2 class="text-lg font-semibold text-white">Admin Comparison Dashboard</h2>
           </div>
-          <div class="px-4 py-3 flex flex-wrap items-end gap-4">
+          <div class="p-4 flex flex-wrap items-end gap-4">
             <div>
-              <label class="block text-sm text-gray-400 mb-1">Companies</label>
-              <select id="cmpMulti" multiple size="4" class="min-w-[18rem] px-2 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"></select>
+              <label class="block text-xs text-gray-500 mb-1">Companies</label>
+              <select id="cmpMulti" multiple size="4" class="min-w-[18rem] px-3 py-2 bg-gray-800/70 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"></select>
               <div class="text-xs text-gray-500 mt-1">Leave empty to include all</div>
             </div>
             <div>
-              <label class="block text-sm text-gray-400 mb-1">Date field</label>
-              <select id="dateField" class="px-2 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm min-w-[12rem]">
+              <label class="block text-xs text-gray-500 mb-1">Date field</label>
+              <select id="dateField" class="px-3 py-2 bg-gray-800/70 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent min-w-[12rem]">
                 <option value="po_created">PO Created</option>
                 <option value="delivery_date">Delivery Date</option>
               </select>
             </div>
             <div>
-              <label class="block text-sm text-gray-400 mb-1">From</label>
-              <input id="dateFrom" type="date" class="px-2 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm min-w-[12rem]" />
+              <label class="block text-xs text-gray-500 mb-1">From</label>
+              <input id="dateFrom" type="date" class="px-3 py-2 bg-gray-800/70 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent min-w-[12rem]" />
             </div>
             <div>
-              <label class="block text-sm text-gray-400 mb-1">To</label>
-              <input id="dateTo" type="date" class="px-2 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm min-w-[12rem]" />
+              <label class="block text-xs text-gray-500 mb-1">To</label>
+              <input id="dateTo" type="date" class="px-3 py-2 bg-gray-800/70 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent min-w-[12rem]" />
             </div>
             <div class="ml-auto flex items-end gap-3">
-              <button id="applyDash" class="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">Apply</button>
-              <button id="exportDash" class="px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 hover:bg-gray-600">Export CSV</button>
+              <button id="applyDash" class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold rounded-lg transition-colors shadow-card">Apply</button>
+              <button id="exportDash" class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 text-sm font-medium rounded-lg transition-colors">Export CSV</button>
             </div>
           </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div class="bg-gray-800 rounded-lg p-4 border border-gray-700"><p class="text-gray-400 text-sm">Total POs</p><p id="kpiTotalPOs" class="text-2xl font-bold text-white">-</p></div>
-          <div class="bg-gray-800 rounded-lg p-4 border border-gray-700"><p class="text-gray-400 text-sm">Requested Qty</p><p id="kpiRequested" class="text-2xl font-bold text-white">-</p></div>
-          <div class="bg-gray-800 rounded-lg p-4 border border-gray-700"><p class="text-gray-400 text-sm">Available Qty</p><p id="kpiAvailable" class="text-2xl font-bold text-white">-</p></div>
-          <div class="bg-gray-800 rounded-lg p-4 border border-gray-700"><p class="text-gray-400 text-sm">Ordered Qty</p><p id="kpiOrdered" class="text-2xl font-bold text-white">-</p></div>
-          <div class="bg-gray-800 rounded-lg p-4 border border-gray-700"><p class="text-gray-400 text-sm">Delivered Qty</p><p id="kpiDelivered" class="text-2xl font-bold text-white">-</p></div>
-          <div class="bg-gray-800 rounded-lg p-4 border border-gray-700"><p class="text-gray-400 text-sm">Fill Rate</p><p id="kpiFillRate" class="text-2xl font-bold text-green-400">-</p></div>
-          <div class="bg-gray-800 rounded-lg p-4 border border-gray-700"><p class="text-gray-400 text-sm">Order Conversion</p><p id="kpiOrderRate" class="text-2xl font-bold text-blue-400">-</p></div>
-          <div class="bg-gray-800 rounded-lg p-4 border border-gray-700"><p class="text-gray-400 text-sm">Delivery Rate</p><p id="kpiDeliveryRate" class="text-2xl font-bold text-purple-400">-</p></div>
+          <StatCard label="Total POs" valueId="kpiTotalPOs" />
+          <StatCard label="Requested Qty" valueId="kpiRequested" />
+          <StatCard label="Available Qty" valueId="kpiAvailable" />
+          <StatCard label="Ordered Qty" valueId="kpiOrdered" />
+          <StatCard label="Delivered Qty" valueId="kpiDelivered" />
+          <StatCard label="Fill Rate" valueId="kpiFillRate" valueClass="text-green-400" />
+          <StatCard label="Order Conversion" valueId="kpiOrderRate" valueClass="text-blue-400" />
+          <StatCard label="Delivery Rate" valueId="kpiDeliveryRate" valueClass="text-purple-400" />
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div class="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
-            <div class="p-4 border-b border-gray-700"><h3 class="text-white font-semibold">By Company</h3></div>
+          <div class="bg-gray-800/60 rounded-xl border border-gray-700/60 shadow-card overflow-hidden">
+            <div class="p-5 border-b border-gray-700/60"><h3 class="text-white font-semibold">By Company</h3></div>
             <div class="overflow-x-auto">
               <table class="w-full text-sm">
-                <thead class="bg-gray-700/50">
+                <thead>
                   <tr>
-                    <th class="px-3 py-2 text-left text-gray-300">Company</th>
-                    <th class="px-3 py-2 text-right text-gray-300">Requested</th>
-                    <th class="px-3 py-2 text-right text-gray-300">Available</th>
-                    <th class="px-3 py-2 text-right text-gray-300">Ordered</th>
-                    <th class="px-3 py-2 text-right text-gray-300">Delivered</th>
-                    <th class="px-3 py-2 text-right text-gray-300">Fill %</th>
-                    <th class="px-3 py-2 text-right text-gray-300">Delivery %</th>
+                    <th class="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Company</th>
+                    <th class="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Requested</th>
+                    <th class="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Available</th>
+                    <th class="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Ordered</th>
+                    <th class="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Delivered</th>
+                    <th class="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Fill %</th>
+                    <th class="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Delivery %</th>
                   </tr>
                 </thead>
-                <tbody id="companyBody"><tr><td colspan="7" class="px-4 py-6 text-center text-gray-400">Loading…</td></tr></tbody>
+                <tbody id="companyBody"><tr><td colspan="7" class="px-4 py-8 text-center text-gray-500 text-sm animate-pulse">Loading…</td></tr></tbody>
               </table>
             </div>
           </div>
-          <div class="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
-            <div class="p-4 border-b border-gray-700"><h3 class="text-white font-semibold">By Order</h3></div>
+          <div class="bg-gray-800/60 rounded-xl border border-gray-700/60 shadow-card overflow-hidden">
+            <div class="p-5 border-b border-gray-700/60"><h3 class="text-white font-semibold">By Order</h3></div>
             <div class="overflow-x-auto">
               <table class="w-full text-sm">
-                <thead class="bg-gray-700/50">
+                <thead>
                   <tr>
-                    <th class="px-3 py-2 text-left text-gray-300">PO</th>
-                    <th class="px-3 py-2 text-left text-gray-300">Company</th>
-                    <th class="px-3 py-2 text-left text-gray-300">Created</th>
-                    <th class="px-3 py-2 text-right text-gray-300">Ordered</th>
-                    <th class="px-3 py-2 text-right text-gray-300">Delivered</th>
-                    <th class="px-3 py-2 text-right text-gray-300">Delivery %</th>
-                    <th class="px-3 py-2 text-right text-gray-300">Amount</th>
+                    <th class="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">PO</th>
+                    <th class="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Company</th>
+                    <th class="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Created</th>
+                    <th class="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Ordered</th>
+                    <th class="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Delivered</th>
+                    <th class="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Delivery %</th>
+                    <th class="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Amount</th>
                   </tr>
                 </thead>
-                <tbody id="ordersBody"><tr><td colspan="7" class="px-4 py-6 text-center text-gray-400">Loading…</td></tr></tbody>
+                <tbody id="ordersBody"><tr><td colspan="7" class="px-4 py-8 text-center text-gray-500 text-sm animate-pulse">Loading…</td></tr></tbody>
               </table>
             </div>
           </div>
@@ -102,35 +104,35 @@ const isAdmin = ['admin', 'super_admin'].includes(profile.role);
       </section>
     )}
 
-    <div class="bg-gray-800 rounded-lg p-4 mb-6">
-      <form id="compareForm" class="flex items-end gap-4">
+    <div class="bg-gray-800/60 rounded-xl border border-gray-700/60 shadow-card p-4 mb-6">
+      <form id="compareForm" class="flex flex-wrap items-end gap-4">
         <div>
-          <label class="block text-sm text-gray-400 mb-1">Purchase Order</label>
+          <label class="block text-xs text-gray-500 mb-1">Purchase Order</label>
           <input id="poIdInput" type="text" placeholder="Enter PO ID or use link"
-                 class="w-80 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white" />
+                 class="w-80 max-w-full px-3 py-2 bg-gray-800/70 border border-gray-700 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
         </div>
-        <button type="submit" class="px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700">Load</button>
+        <button type="submit" class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold rounded-lg transition-colors shadow-card">Load</button>
       </form>
     </div>
 
-    <div id="header" class="bg-gray-800 rounded-lg p-4 border border-gray-700 mb-4 hidden"></div>
+    <div id="header" class="bg-gray-800/60 rounded-xl p-5 border border-gray-700/60 shadow-card mb-4 hidden"></div>
 
-    <div class="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+    <div class="bg-gray-800/40 rounded-xl border border-gray-700/60 shadow-card overflow-hidden">
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
-          <thead class="bg-gray-700/50">
+          <thead>
             <tr>
-              <th class="px-3 py-2 text-left text-gray-300">Product</th>
-              <th class="px-3 py-2 text-right text-gray-300">Requested</th>
-              <th class="px-3 py-2 text-right text-gray-300">Available</th>
-              <th class="px-3 py-2 text-right text-gray-300">Ordered</th>
-              <th class="px-3 py-2 text-right text-gray-300">Delivered</th>
-              <th class="px-3 py-2 text-left text-gray-300">Availability Notes</th>
-              <th class="px-3 py-2 text-left text-gray-300">Delivery Notes</th>
+              <th class="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Product</th>
+              <th class="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Requested</th>
+              <th class="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Available</th>
+              <th class="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Ordered</th>
+              <th class="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Delivered</th>
+              <th class="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Availability Notes</th>
+              <th class="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Delivery Notes</th>
             </tr>
           </thead>
           <tbody id="compareBody">
-            <tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">Provide a PO via link or input to view comparison.</td></tr>
+            <tr><td colspan="7" class="py-12 text-center text-gray-400 text-sm">Provide a PO via link or input to view comparison.</td></tr>
           </tbody>
         </table>
       </div>
@@ -292,17 +294,17 @@ const isAdmin = ['admin', 'super_admin'].includes(profile.role);
           .map(([id, v]) => {
             const f = pct(v.available, v.requested);
             const d = pct(v.delivered, v.ordered);
-            return `<tr class="border-b border-gray-800/50">
-              <td class="px-3 py-2 text-white">${v.name}</td>
-              <td class="px-3 py-2 text-right text-gray-200">${fmt(v.requested)}</td>
-              <td class="px-3 py-2 text-right text-gray-200">${fmt(v.available)}</td>
-              <td class="px-3 py-2 text-right text-gray-200">${fmt(v.ordered)}</td>
-              <td class="px-3 py-2 text-right text-gray-200">${fmt(v.delivered)}</td>
-              <td class="px-3 py-2 text-right ${f>=80?'text-green-400':'text-yellow-400'}">${f.toFixed(1)}%</td>
-              <td class="px-3 py-2 text-right ${d>=80?'text-green-400':'text-yellow-400'}">${d.toFixed(1)}%</td>
+            return `<tr class="border-t border-gray-700/40 hover:bg-gray-800/40 transition-colors">
+              <td class="px-3 py-3 text-white font-medium">${v.name}</td>
+              <td class="px-3 py-3 text-right text-gray-200 tabular-nums">${fmt(v.requested)}</td>
+              <td class="px-3 py-3 text-right text-gray-200 tabular-nums">${fmt(v.available)}</td>
+              <td class="px-3 py-3 text-right text-gray-200 tabular-nums">${fmt(v.ordered)}</td>
+              <td class="px-3 py-3 text-right text-gray-200 tabular-nums">${fmt(v.delivered)}</td>
+              <td class="px-3 py-3 text-right tabular-nums ${f>=80?'text-green-400':'text-yellow-400'}">${f.toFixed(1)}%</td>
+              <td class="px-3 py-3 text-right tabular-nums ${d>=80?'text-green-400':'text-yellow-400'}">${d.toFixed(1)}%</td>
             </tr>`;
           }).join('');
-        companyBody.innerHTML = rowsHtml || '<tr><td colspan="7" class="px-4 py-6 text-center text-gray-400">No data</td></tr>';
+        companyBody.innerHTML = rowsHtml || '<tr><td colspan="7" class="py-12 text-center text-gray-400 text-sm">No data</td></tr>';
       }
 
       const ordersBody = document.getElementById('ordersBody');
@@ -320,17 +322,17 @@ const isAdmin = ['admin', 'super_admin'].includes(profile.role);
           const created = po.created_at ? new Date(po.created_at).toLocaleDateString() : '-';
           const poRef = po.po_number || po.id;
           const cmpName = po.company?.name || '-';
-          return `<tr class="border-b border-gray-800/50">
-            <td class="px-3 py-2 text-purple-300"><a href="/comparison?po_id=${po.id}" class="hover:underline">${poRef}</a></td>
-            <td class="px-3 py-2 text-white">${cmpName}</td>
-            <td class="px-3 py-2 text-gray-300">${created}</td>
-            <td class="px-3 py-2 text-right text-gray-200">${fmt(o)}</td>
-            <td class="px-3 py-2 text-right text-gray-200">${fmt(d)}</td>
-            <td class="px-3 py-2 text-right ${d/o>=0.8?'text-green-400':'text-yellow-400'}">${pctD}</td>
-            <td class="px-3 py-2 text-right text-gray-200">${fmt(Math.round(amt))}</td>
+          return `<tr class="border-t border-gray-700/40 hover:bg-gray-800/40 transition-colors">
+            <td class="px-3 py-3 text-purple-400"><a href="/comparison?po_id=${po.id}" class="font-medium hover:text-purple-300 hover:underline transition-colors">${poRef}</a></td>
+            <td class="px-3 py-3 text-white">${cmpName}</td>
+            <td class="px-3 py-3 text-gray-300">${created}</td>
+            <td class="px-3 py-3 text-right text-gray-200 tabular-nums">${fmt(o)}</td>
+            <td class="px-3 py-3 text-right text-gray-200 tabular-nums">${fmt(d)}</td>
+            <td class="px-3 py-3 text-right tabular-nums ${d/o>=0.8?'text-green-400':'text-yellow-400'}">${pctD}</td>
+            <td class="px-3 py-3 text-right text-gray-200 tabular-nums">${fmt(Math.round(amt))}</td>
           </tr>`;
         }).join('');
-        ordersBody.innerHTML = rowsHtml || '<tr><td colspan="7" class="px-4 py-6 text-center text-gray-400">No data</td></tr>';
+        ordersBody.innerHTML = rowsHtml || '<tr><td colspan="7" class="py-12 text-center text-gray-400 text-sm">No data</td></tr>';
       }
 
       document.getElementById('exportDash')?.addEventListener('click', () => {
@@ -360,7 +362,7 @@ const isAdmin = ['admin', 'super_admin'].includes(profile.role);
     if (!bodyEl || !headerEl) return;
 
     if (!poId) {
-      bodyEl.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">Provide a PO via link or input to view comparison.</td></tr>';
+      bodyEl.innerHTML = '<tr><td colspan="7" class="py-12 text-center text-gray-400 text-sm">Provide a PO via link or input to view comparison.</td></tr>';
       headerEl.classList.add('hidden');
       return;
     }
@@ -376,11 +378,11 @@ const isAdmin = ['admin', 'super_admin'].includes(profile.role);
         if (po) {
           const delivery = po.delivery_date ? new Date(po.delivery_date).toLocaleDateString() : '-';
           const batchId = po.availability_order?.batch?.id || po.availability_order?.batch_id || po.batch_id || '';
-          const availabilityLink = batchId ? `<a href="/availability?batch_id=${batchId}" class="text-sm text-purple-400 hover:text-purple-300 ml-2">View Availability</a>` : '';
+          const availabilityLink = batchId ? `<a href="/availability?batch_id=${batchId}" class="text-sm font-medium text-purple-400 hover:text-purple-300 transition-colors ml-2">View Availability</a>` : '';
           headerEl.innerHTML = `
-            <div class="flex items-center justify-between">
-              <div>
-                <div class="text-white font-mono">PO: ${po.po_number || po.id}</div>
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div class="space-y-1">
+                <div class="text-white font-mono font-semibold">PO: ${po.po_number || po.id}</div>
                 <div class="text-gray-300 text-sm">Company: ${po.company?.name || '-'}</div>
                 <div class="text-gray-400 text-sm">Status: ${po.status.replace(/_/g, ' ')} · Delivery by: ${delivery}</div>
               </div>
@@ -395,30 +397,30 @@ const isAdmin = ['admin', 'super_admin'].includes(profile.role);
     } catch (_) {}
 
     // Items
-    bodyEl.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">Loading...</td></tr>';
+    bodyEl.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-500 text-sm animate-pulse">Loading...</td></tr>';
     try {
       const r = await fetch(`/api/purchase-orders?id=${poId}&items=true`);
-      if (!r.ok) { bodyEl.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">Failed to load.</td></tr>'; return; }
+      if (!r.ok) { bodyEl.innerHTML = '<tr><td colspan="7" class="py-12 text-center text-gray-400 text-sm">Failed to load.</td></tr>'; return; }
       const { data } = await r.json();
       const items = Array.isArray(data) ? data : [];
       if (items.length === 0) {
-        bodyEl.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">No items found.</td></tr>';
+        bodyEl.innerHTML = '<tr><td colspan="7" class="py-12 text-center text-gray-400 text-sm">No items found.</td></tr>';
         return;
       }
       const rows = items.map((it) => `
-        <tr class="border-b border-gray-800/50">
-          <td class="px-3 py-2 text-gray-100">${it.product?.title || it.product?.barcode || '-'}</td>
-          <td class="px-3 py-2 text-right text-gray-200">${it.order_item?.order_qty ?? '-'}</td>
-          <td class="px-3 py-2 text-right text-gray-200">${it.availability?.available_qty ?? '-'}</td>
-          <td class="px-3 py-2 text-right text-gray-200">${it.quantity}</td>
-          <td class="px-3 py-2 text-right text-gray-200">${it.delivered_qty ?? 0}</td>
-          <td class="px-3 py-2 text-gray-300">${it.availability?.comment ? String(it.availability.comment) : '-'}</td>
-          <td class="px-3 py-2 text-gray-300">${it.delivery_notes ? String(it.delivery_notes) : '-'}</td>
+        <tr class="border-t border-gray-700/40 hover:bg-gray-800/40 transition-colors">
+          <td class="px-3 py-3 text-gray-100">${it.product?.title || it.product?.barcode || '-'}</td>
+          <td class="px-3 py-3 text-right text-gray-200 tabular-nums">${it.order_item?.order_qty ?? '-'}</td>
+          <td class="px-3 py-3 text-right text-gray-200 tabular-nums">${it.availability?.available_qty ?? '-'}</td>
+          <td class="px-3 py-3 text-right text-gray-200 tabular-nums">${it.quantity}</td>
+          <td class="px-3 py-3 text-right text-gray-200 tabular-nums">${it.delivered_qty ?? 0}</td>
+          <td class="px-3 py-3 text-gray-300">${it.availability?.comment ? String(it.availability.comment) : '-'}</td>
+          <td class="px-3 py-3 text-gray-300">${it.delivery_notes ? String(it.delivery_notes) : '-'}</td>
         </tr>
       `).join('');
       bodyEl.innerHTML = rows;
     } catch (e) {
-      bodyEl.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">Error loading comparison.</td></tr>';
+      bodyEl.innerHTML = '<tr><td colspan="7" class="py-12 text-center text-gray-400 text-sm">Error loading comparison.</td></tr>';
     }
   }
 
