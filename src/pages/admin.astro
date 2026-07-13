@@ -438,7 +438,7 @@ const isSuper = profile.role === 'super_admin';
       showNotification(
         json.emailed
           ? `Admin created — an email with login instructions was sent to ${email}`
-          : `Admin created. Email delivery failed — temporary password: ${json.temp_password}`,
+          : `Admin created. Email delivery failed (${json.email_error || 'unknown error'}) — temporary password: ${json.temp_password}`,
         'success'
       );
       loadUsers();

@@ -91,6 +91,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     success: true,
     email,
     emailed: sendResp.ok,
+    email_error: sendResp.ok ? undefined : sendResp.error,
     temp_password: tempPassword,
   }), {
     headers: { 'Content-Type': 'application/json' }
