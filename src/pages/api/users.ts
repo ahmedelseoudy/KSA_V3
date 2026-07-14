@@ -200,7 +200,9 @@ export const PUT: APIRoute = async ({ request, cookies }) => {
     return new Response(JSON.stringify({ error: 'Only super admins can change roles' }), { status: 403 });
   }
 
-  // A plain admin can never modify a super_admin's account (status, role, etc.)
+  // A plain admin can never modify a super_admin's account (status, role, etc.).
+  // An orphaned account (no users_profile row) has no verifiable role, so treat
+  // it the same as a super_admin and require super_admin to touch it.
   if (profile.role !== 'super_admin') {
     const { data: targetProfile } = await supabase
       .from('users_profile')
@@ -208,8 +210,8 @@ export const PUT: APIRoute = async ({ request, cookies }) => {
       .eq('id', userId)
       .single();
 
-    if (targetProfile?.role === 'super_admin') {
-      return new Response(JSON.stringify({ error: 'Only super admins can modify a super admin account' }), { status: 403 });
+    if (!targetProfile || targetProfile.role === 'super_admin') {
+      return new Response(JSON.stringify({ error: 'Only super admins can modify this account' }), { status: 403 });
     }
   }
 
@@ -266,7 +268,9 @@ export const DELETE: APIRoute = async ({ request, cookies, url }) => {
     return new Response(JSON.stringify({ error: 'Cannot delete your own account' }), { status: 400 });
   }
 
-  // A plain admin can never delete a super_admin account
+  // A plain admin can never delete a super_admin account. An orphaned account
+  // (no users_profile row) has no verifiable role, so treat it the same as a
+  // super_admin and require super_admin to delete it.
   if (profile.role !== 'super_admin') {
     const { data: targetProfile } = await supabase
       .from('users_profile')
@@ -274,8 +278,8 @@ export const DELETE: APIRoute = async ({ request, cookies, url }) => {
       .eq('id', userId)
       .single();
 
-    if (targetProfile?.role === 'super_admin') {
-      return new Response(JSON.stringify({ error: 'Only super admins can delete a super admin account' }), { status: 403 });
+    if (!targetProfile || targetProfile.role === 'super_admin') {
+      return new Response(JSON.stringify({ error: 'Only super admins can delete this account' }), { status: 403 });
     }
   }
 
