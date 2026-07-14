@@ -146,7 +146,9 @@ export const GET: APIRoute = async ({ request, cookies, url }) => {
           orphans.push({
             id: authUser.id,
             email: authUser.email,
-            role: 'user',
+            // Role is unknown, not 'user' — the profile row that would tell us
+            // is gone, and it may have belonged to an admin or super_admin.
+            role: 'unknown',
             status: 'orphaned',
             created_at: authUser.created_at,
           });

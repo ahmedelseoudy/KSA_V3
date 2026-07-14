@@ -294,6 +294,7 @@ const isSuper = profile.role === 'super_admin';
   function getRoleBadge(role) {
     if (role === 'super_admin') return 'bg-purple-500/10 text-purple-300 ring-1 ring-inset ring-purple-500/30';
     if (role === 'admin') return 'bg-blue-500/10 text-blue-300 ring-1 ring-inset ring-blue-500/30';
+    if (role === 'unknown') return 'bg-orange-500/10 text-orange-300 ring-1 ring-inset ring-orange-500/30';
     return 'bg-gray-500/10 text-gray-300 ring-1 ring-inset ring-gray-500/30';
   }
 
