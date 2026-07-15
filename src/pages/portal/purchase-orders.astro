@@ -63,7 +63,7 @@ if (!profile || profile.role !== 'company') {
               'bg-blue-500/10 text-blue-300 ring-1 ring-inset ring-blue-500/30'
             }">${po.status.replace(/_/g, ' ')}</span>
             ${po.status === 'sent' ? `
-              <button onclick="window.confirmPO('${po.id}')" class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 text-white text-sm font-semibold rounded-lg transition-colors shadow-card">
+              <button onclick="window.confirmPO('${po.id}')" class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 text-oncolor text-sm font-semibold rounded-lg transition-colors shadow-card">
                 Confirm
               </button>
             ` : ''}

@@ -14,11 +14,11 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
 <Layout title="Products Database - KSA CRM">
   <div class="max-w-7xl mx-auto">
     <PageHeader title="Products Database" subtitle="Browse, add, and bulk-import the products used for order matching">
-      <button slot="actions" id="bulkUploadBtn" class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 text-sm font-medium rounded-lg transition-colors">
+      <button slot="actions" id="bulkUploadBtn" class="btn btn-secondary btn-md">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"/></svg>
         Bulk Upload
       </button>
-      <button slot="actions" id="addProductBtn" class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold rounded-lg transition-colors shadow-card">
+      <button slot="actions" id="addProductBtn" class="btn btn-primary btn-md">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
         Add Product
       </button>
@@ -37,7 +37,7 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
           <option value="">All Companies</option>
         </select>
       </div>
-      <button id="searchBtn" class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 text-sm font-medium rounded-lg transition-colors">
+      <button id="searchBtn" class="btn btn-secondary btn-md">
         Search
       </button>
     </div>
@@ -76,8 +76,8 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
       <div class="flex justify-between items-center px-4 py-3 border-t border-gray-700/60 bg-gray-800/60">
         <p class="text-sm text-gray-400 tabular-nums" id="paginationInfo">Showing 0 of 0</p>
         <div class="flex gap-2">
-          <button id="prevPage" class="inline-flex items-center justify-center gap-2 px-2.5 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 text-xs font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>Previous</button>
-          <button id="nextPage" class="inline-flex items-center justify-center gap-2 px-2.5 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 text-xs font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>Next</button>
+          <button id="prevPage" class="btn btn-secondary btn-sm disabled:opacity-50 disabled:cursor-not-allowed" disabled>Previous</button>
+          <button id="nextPage" class="btn btn-secondary btn-sm disabled:opacity-50 disabled:cursor-not-allowed" disabled>Next</button>
         </div>
       </div>
     </div>
@@ -106,8 +106,8 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
         </div>
         <div id="uploadResult" class="hidden mb-4 p-3 rounded-lg"></div>
         <div class="flex justify-end gap-3">
-          <button id="closeUploadModal" class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 text-sm font-medium rounded-lg transition-colors">Cancel</button>
-          <button id="startUpload" class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold rounded-lg transition-colors shadow-card disabled:opacity-50 disabled:cursor-not-allowed" disabled>Upload</button>
+          <button id="closeUploadModal" class="btn btn-secondary btn-md">Cancel</button>
+          <button id="startUpload" class="btn btn-primary btn-md disabled:opacity-50 disabled:cursor-not-allowed" disabled>Upload</button>
         </div>
       </div>
     </div>
@@ -152,8 +152,8 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
             <input type="text" name="category" class="w-full px-3 py-2 bg-gray-800/70 border border-gray-700 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
           </div>
           <div class="flex justify-end gap-3 pt-2">
-            <button type="button" id="closeAddModal" class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 text-sm font-medium rounded-lg transition-colors">Cancel</button>
-            <button type="submit" class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold rounded-lg transition-colors shadow-card">Add Product</button>
+            <button type="button" id="closeAddModal" class="btn btn-secondary btn-md">Cancel</button>
+            <button type="submit" class="btn btn-primary btn-md">Add Product</button>
           </div>
         </form>
       </div>

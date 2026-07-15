@@ -2,6 +2,7 @@
 import Layout from '../layouts/Layout.astro';
 import PageHeader from '../components/ui/PageHeader.astro';
 import StatCard from '../components/ui/StatCard.astro';
+import { ACCENT_TILE, ACCENT_HOVER_TITLE, ACCENT_HOVER_BORDER } from '../utils/navigation/accent-colors';
 
 const user = Astro.locals.user;
 const profile = (user as any)?.profile;
@@ -27,58 +28,58 @@ if (profile?.role === 'company') {
     <!-- Quick Actions -->
     <h2 class="text-lg font-semibold text-white mb-4">Quick Actions</h2>
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-      <a href="/products" class="bg-gray-800/60 rounded-xl p-5 border border-gray-700/60 shadow-card hover:border-purple-500/50 hover:bg-gray-800 transition-colors group">
-        <span class="w-10 h-10 mb-3 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center">
+      <a href="/products" class={`bg-gray-800/60 rounded-xl p-5 border border-gray-700/60 shadow-card ${ACCENT_HOVER_BORDER.cyan} hover:bg-gray-800 transition-colors group`}>
+        <span class={`w-10 h-10 mb-3 rounded-lg ${ACCENT_TILE.cyan} flex items-center justify-center`}>
           <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" />
           </svg>
         </span>
-        <h3 class="text-white font-semibold group-hover:text-purple-300 transition-colors">Products Database</h3>
+        <h3 class={`text-white font-semibold ${ACCENT_HOVER_TITLE.cyan} transition-colors`}>Products Database</h3>
         <p class="text-gray-400 text-sm mt-1">Upload and manage your product catalog</p>
       </a>
-      <a href="/orders" class="bg-gray-800/60 rounded-xl p-5 border border-gray-700/60 shadow-card hover:border-purple-500/50 hover:bg-gray-800 transition-colors group">
-        <span class="w-10 h-10 mb-3 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center">
+      <a href="/orders" class={`bg-gray-800/60 rounded-xl p-5 border border-gray-700/60 shadow-card ${ACCENT_HOVER_BORDER.purple} hover:bg-gray-800 transition-colors group`}>
+        <span class={`w-10 h-10 mb-3 rounded-lg ${ACCENT_TILE.purple} flex items-center justify-center`}>
           <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
         </span>
-        <h3 class="text-white font-semibold group-hover:text-purple-300 transition-colors">Order Batches</h3>
+        <h3 class={`text-white font-semibold ${ACCENT_HOVER_TITLE.purple} transition-colors`}>Order Batches</h3>
         <p class="text-gray-400 text-sm mt-1">Create and manage order batches</p>
       </a>
-      <a href="/orders" class="bg-gray-800/60 rounded-xl p-5 border border-gray-700/60 shadow-card hover:border-purple-500/50 hover:bg-gray-800 transition-colors group">
-        <span class="w-10 h-10 mb-3 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center">
+      <a href="/orders" class={`bg-gray-800/60 rounded-xl p-5 border border-gray-700/60 shadow-card ${ACCENT_HOVER_BORDER.purple} hover:bg-gray-800 transition-colors group`}>
+        <span class={`w-10 h-10 mb-3 rounded-lg ${ACCENT_TILE.purple} flex items-center justify-center`}>
           <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
           </svg>
         </span>
-        <h3 class="text-white font-semibold group-hover:text-purple-300 transition-colors">Process Orders</h3>
+        <h3 class={`text-white font-semibold ${ACCENT_HOVER_TITLE.purple} transition-colors`}>Process Orders</h3>
         <p class="text-gray-400 text-sm mt-1">Upload and process new order files</p>
       </a>
-      <a href="/availability" class="bg-gray-800/60 rounded-xl p-5 border border-gray-700/60 shadow-card hover:border-purple-500/50 hover:bg-gray-800 transition-colors group">
-        <span class="w-10 h-10 mb-3 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center">
+      <a href="/availability" class={`bg-gray-800/60 rounded-xl p-5 border border-gray-700/60 shadow-card ${ACCENT_HOVER_BORDER.emerald} hover:bg-gray-800 transition-colors group`}>
+        <span class={`w-10 h-10 mb-3 rounded-lg ${ACCENT_TILE.emerald} flex items-center justify-center`}>
           <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </span>
-        <h3 class="text-white font-semibold group-hover:text-purple-300 transition-colors">Availability</h3>
+        <h3 class={`text-white font-semibold ${ACCENT_HOVER_TITLE.emerald} transition-colors`}>Availability</h3>
         <p class="text-gray-400 text-sm mt-1">Track company availability responses</p>
       </a>
-      <a href="/deliveries" class="bg-gray-800/60 rounded-xl p-5 border border-gray-700/60 shadow-card hover:border-purple-500/50 hover:bg-gray-800 transition-colors group">
-        <span class="w-10 h-10 mb-3 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center">
+      <a href="/deliveries" class={`bg-gray-800/60 rounded-xl p-5 border border-gray-700/60 shadow-card ${ACCENT_HOVER_BORDER.orange} hover:bg-gray-800 transition-colors group`}>
+        <span class={`w-10 h-10 mb-3 rounded-lg ${ACCENT_TILE.orange} flex items-center justify-center`}>
           <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
           </svg>
         </span>
-        <h3 class="text-white font-semibold group-hover:text-purple-300 transition-colors">Deliveries</h3>
+        <h3 class={`text-white font-semibold ${ACCENT_HOVER_TITLE.orange} transition-colors`}>Deliveries</h3>
         <p class="text-gray-400 text-sm mt-1">Track delivery status per PO</p>
       </a>
-      <a href="/analytics" class="bg-gray-800/60 rounded-xl p-5 border border-gray-700/60 shadow-card hover:border-purple-500/50 hover:bg-gray-800 transition-colors group">
-        <span class="w-10 h-10 mb-3 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center">
+      <a href="/analytics" class={`bg-gray-800/60 rounded-xl p-5 border border-gray-700/60 shadow-card ${ACCENT_HOVER_BORDER.fuchsia} hover:bg-gray-800 transition-colors group`}>
+        <span class={`w-10 h-10 mb-3 rounded-lg ${ACCENT_TILE.fuchsia} flex items-center justify-center`}>
           <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
           </svg>
         </span>
-        <h3 class="text-white font-semibold group-hover:text-purple-300 transition-colors">Analytics</h3>
+        <h3 class={`text-white font-semibold ${ACCENT_HOVER_TITLE.fuchsia} transition-colors`}>Analytics</h3>
         <p class="text-gray-400 text-sm mt-1">Business insights and performance</p>
       </a>
     </div>

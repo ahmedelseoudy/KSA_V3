@@ -1,5 +1,7 @@
 ---
 import Navigation from '../components/Navigation.astro';
+import ThemeInit from '../components/ThemeInit.astro';
+import '../styles/global.css';
 
 interface Props {
 	title: string;
@@ -21,6 +23,7 @@ const shouldShowNav = showNavigation && !!(user && (user as any).profile && (use
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<meta name="generator" content={Astro.generator} />
+		<ThemeInit />
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 		<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -99,54 +102,6 @@ const shouldShowNav = showNavigation && !!(user && (user as any).profile && (use
   // Initial check
   handleResize();
 </script>
-
-<style is:global>
-	:root {
-		--accent: 139, 92, 246; /* violet-500 */
-		--accent-light: 196, 181, 253;
-		--accent-dark: 76, 29, 149;
-	}
-	html {
-		background: #020617; /* gray-950 */
-		scroll-behavior: smooth;
-	}
-
-	/* Refined dark scrollbars */
-	* {
-		scrollbar-width: thin;
-		scrollbar-color: #334155 transparent;
-	}
-	*::-webkit-scrollbar {
-		width: 8px;
-		height: 8px;
-	}
-	*::-webkit-scrollbar-thumb {
-		background: #334155;
-		border-radius: 8px;
-	}
-	*::-webkit-scrollbar-thumb:hover {
-		background: #475569;
-	}
-	*::-webkit-scrollbar-track {
-		background: transparent;
-	}
-
-	/* Consistent focus treatment for keyboard users */
-	:focus-visible {
-		outline: 2px solid rgb(var(--accent));
-		outline-offset: 2px;
-	}
-
-	::selection {
-		background: rgba(var(--accent), 0.35);
-		color: #fff;
-	}
-
-	/* Native date/select controls render dark */
-	input, select, textarea {
-		color-scheme: dark;
-	}
-</style>
 
 <style>
   /* Ensure smooth transitions */

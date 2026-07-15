@@ -61,7 +61,7 @@ if (!profile || profile.role !== 'company') {
           </div>
           <div class="flex gap-3 items-center flex-wrap">
             <span class="text-sm text-gray-400 tabular-nums">${ao.available_count || 0} available · ${ao.unavailable_count || 0} unavailable</span>
-            <button onclick="window.loadResponses('${ao.id}')" class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold rounded-lg transition-colors shadow-card">
+            <button onclick="window.loadResponses('${ao.id}')" class="btn btn-primary btn-md">
               ${ao.status === 'responded' ? 'View' : 'Respond'}
             </button>
           </div>
@@ -95,7 +95,7 @@ if (!profile || profile.role !== 'company') {
             <button onclick="window.markAll('${aoId}', true)" class="inline-flex items-center justify-center gap-2 px-2.5 py-1.5 text-xs font-medium text-green-300 bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 rounded-lg transition-colors">Mark All Available</button>
             <button onclick="window.markAll('${aoId}', false)" class="inline-flex items-center justify-center gap-2 px-2.5 py-1.5 text-xs font-medium text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-lg transition-colors">Mark All Unavailable</button>
           </div>
-          <button onclick="window.submitResponses('${aoId}')" class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold rounded-lg transition-colors shadow-card">Save Responses</button>
+          <button onclick="window.submitResponses('${aoId}')" class="btn btn-primary btn-md">Save Responses</button>
         </div>
         <div class="overflow-x-auto rounded-xl border border-gray-700/60 bg-gray-800/40">
           <table class="w-full text-sm">

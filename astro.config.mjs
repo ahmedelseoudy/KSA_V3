@@ -11,7 +11,7 @@ export default defineConfig({
   adapter: node({
     mode: 'standalone'
   }),
-  integrations: [tailwind(), react()],
+  integrations: [tailwind({ config: { applyBaseStyles: false } }), react()],
   vite: {
     ssr: {
       noExternal: ['chart.js', 'jszip', 'xlsx-js-style']

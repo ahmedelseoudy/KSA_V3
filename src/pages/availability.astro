@@ -72,7 +72,7 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
               <label class="inline-flex items-center gap-2 text-sm text-gray-300 py-2">
                 <input id="includePartialChk" type="checkbox" class="accent-purple-600" /> Include partially responded
               </label>
-              <button id="generatePOsBtn" class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold rounded-lg transition-colors shadow-card disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+              <button id="generatePOsBtn" class="btn btn-primary btn-md disabled:opacity-50 disabled:cursor-not-allowed" disabled>
                 Generate POs
               </button>
             </div>
@@ -108,9 +108,9 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
           </select>
         </div>
         <div class="flex items-center gap-2">
-          <button id="avPrev" class="inline-flex items-center justify-center gap-2 px-2.5 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 text-xs font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Prev</button>
+          <button id="avPrev" class="btn btn-secondary btn-sm disabled:opacity-50 disabled:cursor-not-allowed">Prev</button>
           <span id="avPageInfo" class="text-sm text-gray-400 tabular-nums">-</span>
-          <button id="avNext" class="inline-flex items-center justify-center gap-2 px-2.5 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 text-xs font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Next</button>
+          <button id="avNext" class="btn btn-secondary btn-sm disabled:opacity-50 disabled:cursor-not-allowed">Next</button>
         </div>
       </div>
     </div>
@@ -380,7 +380,7 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
             <label class="block text-xs text-gray-500 mb-1">Delivery Date</label>
             <input id="poDate-${availabilityOrderId}" type="date" value="${today}" class="px-3 py-2 bg-gray-800/70 border border-gray-700 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent min-w-[12rem]" />
           </div>
-          <button id="poBtn-${availabilityOrderId}" class="inline-flex items-center justify-center gap-2 px-2.5 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold rounded-lg transition-colors shadow-card">Create PO from available</button>
+          <button id="poBtn-${availabilityOrderId}" class="btn btn-primary btn-sm">Create PO from available</button>
           <span class="text-xs text-gray-500 pb-1.5">Only items marked available will be included.</span>
         </div>
       `;

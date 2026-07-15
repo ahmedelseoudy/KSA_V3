@@ -36,8 +36,8 @@ if (profile.role !== 'super_admin') {
           <p class="text-xs text-gray-500 mt-1">Prefilled from company.invite_email (if present) or company.email. You can override before sending.</p>
         </div>
         <div class="flex flex-wrap gap-3 pt-2">
-          <button type="submit" class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold rounded-lg transition-colors shadow-card">Send Invite</button>
-          <button id="resendBtn" type="button" class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 text-sm font-medium rounded-lg transition-colors hidden">Resend Existing Invite</button>
+          <button type="submit" class="btn btn-primary btn-md">Send Invite</button>
+          <button id="resendBtn" type="button" class="btn btn-secondary btn-md hidden">Resend Existing Invite</button>
         </div>
         <div id="feedback" class="hidden mt-2 text-sm"></div>
       </form>

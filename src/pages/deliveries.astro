@@ -233,7 +233,7 @@ if (!profile || !['admin', 'super_admin', 'company'].includes(profile.role)) {
             </tbody>
           </table>
         </div>
-        ${canEdit ? `<div class=\"mt-3 flex justify-end\"><button onclick=\"window.saveAllDeliveries('${poId}')\" class=\"inline-flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold rounded-lg transition-colors shadow-card\">Save All Changes</button></div>` : ''}
+        ${canEdit ? `<div class=\"mt-3 flex justify-end\"><button onclick=\"window.saveAllDeliveries('${poId}')\" class=\"btn btn-primary btn-md\">Save All Changes</button></div>` : ''}
       </div>
     `;
   }

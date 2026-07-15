@@ -1,0 +1,330 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Theming bridge: tailwind.config.mjs remaps gray/white/purple/indigo/red/green/yellow/blue/orange
+ * to reference these CSS variables. Flipping the `.dark`/`.light` class on <html> re-themes every
+ * existing utility class app-wide — including ones inside JS innerHTML template strings — with no
+ * page edits, since those pages can't use Tailwind's `dark:` variant (see CLAUDE.md).
+ *
+ * Shade pairs (300<->700, 400<->600, 500 constant) invert between themes so text/icons that read
+ * as a light accent on a dark card also read as a dark accent on a light card.
+ */
+@layer base {
+  :root,
+  .dark {
+    color-scheme: dark;
+
+    --gray-50: 248 250 252;
+    --gray-100: 241 245 249;
+    --gray-200: 226 232 240;
+    --gray-300: 203 213 225;
+    --gray-400: 148 163 184;
+    --gray-500: 100 116 139;
+    --gray-600: 71 85 105;
+    --gray-700: 51 65 85;
+    --gray-800: 30 41 59;
+    --gray-900: 15 23 42;
+    --gray-950: 2 6 23;
+    --white: 255 255 255;
+
+    --purple-300: 196 181 253;
+    --purple-400: 167 139 250;
+    --purple-500: 139 92 246;
+    --purple-600: 124 58 237;
+    --purple-700: 109 40 217;
+
+    --red-300: 252 165 165;
+    --red-400: 248 113 113;
+    --red-500: 239 68 68;
+    --red-600: 220 38 38;
+    --red-700: 185 28 28;
+
+    --green-300: 134 239 172;
+    --green-400: 74 222 128;
+    --green-500: 34 197 94;
+    --green-600: 22 163 74;
+    --green-700: 21 128 61;
+
+    --yellow-300: 253 224 71;
+    --yellow-400: 250 204 21;
+    --yellow-500: 234 179 8;
+    --yellow-600: 202 138 4;
+    --yellow-700: 161 98 7;
+
+    --blue-300: 147 197 253;
+    --blue-400: 96 165 250;
+    --blue-500: 59 130 246;
+    --blue-600: 37 99 235;
+    --blue-700: 29 78 216;
+
+    --orange-300: 253 186 116;
+    --orange-400: 251 146 60;
+    --orange-500: 249 115 22;
+    --orange-600: 234 88 12;
+    --orange-700: 194 65 12;
+
+    /* Module accent colors (Products/Companies/Availability/Analytics/Admin) */
+    --cyan-300: 103 232 249;
+    --cyan-400: 34 211 238;
+    --cyan-500: 6 182 212;
+    --cyan-600: 8 145 178;
+    --cyan-700: 14 116 144;
+
+    --sky-300: 125 211 252;
+    --sky-400: 56 189 248;
+    --sky-500: 14 165 233;
+    --sky-600: 2 132 199;
+    --sky-700: 3 105 161;
+
+    --emerald-300: 110 231 183;
+    --emerald-400: 52 211 153;
+    --emerald-500: 16 185 129;
+    --emerald-600: 5 150 105;
+    --emerald-700: 4 120 87;
+
+    --amber-300: 252 211 77;
+    --amber-400: 251 191 36;
+    --amber-500: 245 158 11;
+    --amber-600: 217 119 6;
+    --amber-700: 180 83 9;
+
+    --fuchsia-300: 240 171 252;
+    --fuchsia-400: 232 121 249;
+    --fuchsia-500: 217 70 239;
+    --fuchsia-600: 192 38 211;
+    --fuchsia-700: 162 28 175;
+
+    --rose-300: 253 164 175;
+    --rose-400: 251 113 133;
+    --rose-500: 244 63 94;
+    --rose-600: 225 29 72;
+    --rose-700: 190 18 60;
+
+    --accent: 139, 92, 246; /* violet-500 */
+    --accent-light: 196, 181, 253;
+    --accent-dark: 76, 29, 149;
+
+    --scrollbar-thumb: 51 65 85;
+    --scrollbar-thumb-hover: 71 85 105;
+    --auth-glow-alpha: 0.12;
+    --auth-glow-alpha-2: 0.07;
+  }
+
+  .light {
+    color-scheme: light;
+
+    --gray-50: 2 6 23;
+    --gray-100: 15 23 42;
+    --gray-200: 30 41 59;
+    --gray-300: 51 65 85;
+    --gray-400: 71 85 105;
+    --gray-500: 100 116 139;
+    --gray-600: 148 163 184;
+    --gray-700: 203 213 225;
+    --gray-800: 226 232 240;
+    --gray-900: 241 245 249;
+    --gray-950: 248 250 252;
+    --white: 15 23 42;
+
+    --purple-300: 109 40 217;
+    --purple-400: 124 58 237;
+    --purple-500: 139 92 246;
+    --purple-600: 124 58 237;
+    --purple-700: 109 40 217;
+
+    --red-300: 185 28 28;
+    --red-400: 220 38 38;
+    --red-500: 239 68 68;
+    --red-600: 220 38 38;
+    --red-700: 185 28 28;
+
+    --green-300: 21 128 61;
+    --green-400: 22 163 74;
+    --green-500: 34 197 94;
+    --green-600: 22 163 74;
+    --green-700: 21 128 61;
+
+    --yellow-300: 161 98 7;
+    --yellow-400: 202 138 4;
+    --yellow-500: 234 179 8;
+    --yellow-600: 202 138 4;
+    --yellow-700: 161 98 7;
+
+    --blue-300: 29 78 216;
+    --blue-400: 37 99 235;
+    --blue-500: 59 130 246;
+    --blue-600: 37 99 235;
+    --blue-700: 29 78 216;
+
+    --orange-300: 194 65 12;
+    --orange-400: 234 88 12;
+    --orange-500: 249 115 22;
+    --orange-600: 234 88 12;
+    --orange-700: 194 65 12;
+
+    --cyan-300: 14 116 144;
+    --cyan-400: 8 145 178;
+    --cyan-500: 6 182 212;
+    --cyan-600: 8 145 178;
+    --cyan-700: 14 116 144;
+
+    --sky-300: 3 105 161;
+    --sky-400: 2 132 199;
+    --sky-500: 14 165 233;
+    --sky-600: 2 132 199;
+    --sky-700: 3 105 161;
+
+    --emerald-300: 4 120 87;
+    --emerald-400: 5 150 105;
+    --emerald-500: 16 185 129;
+    --emerald-600: 5 150 105;
+    --emerald-700: 4 120 87;
+
+    --amber-300: 180 83 9;
+    --amber-400: 217 119 6;
+    --amber-500: 245 158 11;
+    --amber-600: 217 119 6;
+    --amber-700: 180 83 9;
+
+    --fuchsia-300: 162 28 175;
+    --fuchsia-400: 192 38 211;
+    --fuchsia-500: 217 70 239;
+    --fuchsia-600: 192 38 211;
+    --fuchsia-700: 162 28 175;
+
+    --rose-300: 190 18 60;
+    --rose-400: 225 29 72;
+    --rose-500: 244 63 94;
+    --rose-600: 225 29 72;
+    --rose-700: 190 18 60;
+
+    --accent: 124, 58, 237; /* violet-600 reads better on a light surface */
+    --accent-light: 139, 92, 246;
+    --accent-dark: 76, 29, 149;
+
+    --scrollbar-thumb: 203 213 225;
+    --scrollbar-thumb-hover: 148 163 184;
+    --auth-glow-alpha: 0.06;
+    --auth-glow-alpha-2: 0.04;
+  }
+
+  html {
+    background: rgb(var(--gray-950));
+    scroll-behavior: smooth;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--scrollbar-thumb)) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: rgb(var(--scrollbar-thumb));
+    border-radius: 8px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: rgb(var(--scrollbar-thumb-hover));
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  :focus-visible {
+    outline: 2px solid rgb(var(--accent));
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: rgba(var(--accent), 0.35);
+    color: rgb(var(--white));
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/*
+ * Shared component classes: one visual language for both Astro markup and the
+ * innerHTML JS templates, matching the shapes already established across the
+ * app (soft tinted badges/buttons, card surfaces, form inputs, modals). New
+ * UI should prefer these over ad hoc inline utility strings — see CLAUDE.md
+ * "Frontend Design System".
+ */
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-md {
+    @apply px-4 py-2 text-sm;
+  }
+  .btn-sm {
+    @apply px-2.5 py-1.5 text-xs;
+  }
+  .btn-primary {
+    @apply bg-purple-600 hover:bg-purple-500 text-oncolor shadow-card;
+  }
+  .btn-secondary {
+    @apply bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 font-medium;
+  }
+  .btn-soft-brand {
+    @apply text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 font-medium;
+  }
+  .btn-soft-success {
+    @apply text-green-300 bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 font-medium;
+  }
+  .btn-soft-danger {
+    @apply text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 font-medium;
+  }
+
+  .badge {
+    @apply inline-flex px-2 py-0.5 text-xs font-medium rounded-full ring-1 ring-inset;
+  }
+  .badge-success {
+    @apply bg-green-500/10 text-green-300 ring-green-500/30;
+  }
+  .badge-warning {
+    @apply bg-yellow-500/10 text-yellow-300 ring-yellow-500/30;
+  }
+  .badge-danger {
+    @apply bg-red-500/10 text-red-300 ring-red-500/30;
+  }
+  .badge-info {
+    @apply bg-blue-500/10 text-blue-300 ring-blue-500/30;
+  }
+  .badge-brand {
+    @apply bg-purple-500/10 text-purple-300 ring-purple-500/30;
+  }
+  .badge-pending {
+    @apply bg-gray-500/10 text-gray-300 ring-gray-500/30;
+  }
+
+  .card {
+    @apply bg-gray-800/60 rounded-xl border border-gray-700/60 shadow-card;
+  }
+
+  .input {
+    @apply w-full px-3 py-2 bg-gray-800/70 border border-gray-700 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent;
+  }
+
+  .table-header-cell {
+    @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80;
+  }
+
+  .modal-overlay {
+    @apply fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center;
+  }
+  .modal-panel {
+    @apply bg-gray-900 border border-gray-800 rounded-2xl shadow-modal p-6 w-full mx-4 max-h-[90vh] overflow-y-auto;
+  }
+}
