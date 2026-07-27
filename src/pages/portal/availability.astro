@@ -88,8 +88,15 @@ if (!profile || profile.role !== 'company') {
     if (!resp.ok) return;
     const { data } = await resp.json();
 
+    const adminEntered = (data || []).some((r: any) => r.responded_by_role && r.responded_by_role !== 'company');
+    const adminBanner = adminEntered ? `
+      <div class="mb-3 text-xs text-blue-300 bg-blue-500/10 border border-blue-500/30 rounded-lg px-3 py-2">
+        Some responses were entered by our team on your behalf. You can still update them below.
+      </div>` : '';
+
     container.innerHTML = `
       <div class="p-5">
+        ${adminBanner}
         <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
           <div class="flex gap-2 flex-wrap">
             <button onclick="window.markAll('${aoId}', true)" class="inline-flex items-center justify-center gap-2 px-2.5 py-1.5 text-xs font-medium text-green-300 bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 rounded-lg transition-colors">Mark All Available</button>

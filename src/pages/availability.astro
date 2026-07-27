@@ -155,6 +155,14 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
   const urlParams = new URLSearchParams(window.location.search);
   const forcedBatchId = urlParams.get('batch_id') || '';
 
+  function escapeHtml(s: string): string {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
   function getFilteredOrders() {
     let rows = [...allAvailOrders];
     if (forcedBatchId) rows = rows.filter((o: any) => (o.batch_id || '') === forcedBatchId);
@@ -369,6 +377,24 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
       const available = items.filter((r: any) => r.is_available === true);
       const unavailable = items.filter((r: any) => r.is_available === false);
 
+      const attributionBadge = (() => {
+        const responded = items.filter((r: any) => r.is_available !== null);
+        if (responded.length === 0) return '';
+        const roles = new Set(responded.map((r: any) => r.responded_by_role).filter(Boolean));
+        const isAdminRole = (role: any) => role === 'admin' || role === 'super_admin';
+        if (roles.size === 1 && roles.has('company')) {
+          return '<span class="badge badge-success">Responded by company</span>';
+        }
+        if (roles.size > 0 && Array.from(roles).every(isAdminRole)) {
+          const emails = Array.from(new Set(responded
+            .map((r: any) => r.responded_by_profile?.email)
+            .filter(Boolean)));
+          return `<span class="badge badge-info">Entered by admin${emails.length ? ` (${escapeHtml(emails.join(', '))})` : ''}</span>`;
+        }
+        if (roles.size === 0) return '<span class="badge badge-pending">Attribution unknown</span>';
+        return '<span class="badge badge-warning">Mixed: company + admin</span>';
+      })();
+
       const today = new Date().toISOString().slice(0,10);
       const actionBar = `
         <div class="flex flex-wrap items-end gap-3 mb-4 bg-gray-800/60 border border-gray-700/60 rounded-xl p-3">
@@ -382,8 +408,19 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
           </div>
           <button id="poBtn-${availabilityOrderId}" class="btn btn-primary btn-sm">Create PO from available</button>
           <span class="text-xs text-gray-500 pb-1.5">Only items marked available will be included.</span>
+          <div class="ml-auto flex items-center gap-2">
+            ${attributionBadge}
+            <button id="editRespBtn-${availabilityOrderId}" class="btn btn-secondary btn-sm">Enter responses on behalf</button>
+          </div>
         </div>
       `;
+
+      const byLabel = (r: any) => {
+        if (!r.responded_by_role) return '-';
+        if (r.responded_by_role === 'company') return 'Company';
+        const email = r.responded_by_profile?.email;
+        return `Admin${email ? ` (${escapeHtml(email)})` : ''}`;
+      };
 
       const renderItemRow = (r: any) => {
         const it = r.order_item || {};
@@ -392,13 +429,14 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
         const cost = typeof it.provider_cost === 'number' ? it.provider_cost : (it.provider_cost || '');
         return `
           <tr class="border-t border-gray-700/40 hover:bg-gray-800/40 transition-colors">
-            <td class="px-3 py-2 font-mono text-xs text-gray-200">${it.barcode || '-'}</td>
-            <td class="px-3 py-2 text-gray-100">${it.title || '-'}</td>
-            <td class="px-3 py-2 text-gray-300">${it.asin || '-'}</td>
+            <td class="px-3 py-2 font-mono text-xs text-gray-200">${escapeHtml(it.barcode || '-')}</td>
+            <td class="px-3 py-2 text-gray-100">${escapeHtml(it.title || '-')}</td>
+            <td class="px-3 py-2 text-gray-300">${escapeHtml(it.asin || '-')}</td>
             <td class="px-3 py-2 text-right text-gray-200 tabular-nums">${qty || '-'}</td>
             <td class="px-3 py-2 text-right text-gray-200 tabular-nums">${boxes || '-'}</td>
             <td class="px-3 py-2 text-right text-gray-200 tabular-nums">${cost || '-'}</td>
-            <td class="px-3 py-2 text-gray-300">${r.comment ? String(r.comment) : '-'}</td>
+            <td class="px-3 py-2 text-gray-300">${r.comment ? escapeHtml(r.comment) : '-'}</td>
+            <td class="px-3 py-2 text-gray-400 text-xs">${byLabel(r)}</td>
           </tr>
         `;
       };
@@ -420,6 +458,7 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
                     <th class="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Boxes</th>
                     <th class="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Provider Cost</th>
                     <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Comment</th>
+                    <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">By</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -431,10 +470,70 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
         </div>
       `;
 
+      const renderEditableRow = (r: any) => {
+        const it = r.order_item || {};
+        const origVal = r.is_available === null ? '' : String(r.is_available);
+        const origComment = escapeHtml(r.comment || '');
+        return `
+          <tr class="border-t border-gray-700/40 hover:bg-gray-800/40 transition-colors" data-resp-id="${r.id}">
+            <td class="px-3 py-2 font-mono text-xs text-gray-200">${escapeHtml(it.barcode || '-')}</td>
+            <td class="px-3 py-2 text-gray-100">${escapeHtml(it.title || '-')}</td>
+            <td class="px-3 py-2 text-right text-gray-200 tabular-nums">${it.order_qty || '-'}</td>
+            <td class="px-3 py-2 text-right text-gray-200 tabular-nums">${it.boxes || '-'}</td>
+            <td class="px-3 py-2 text-center">
+              <select class="adm-avail-select px-3 py-2 bg-gray-800/70 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" data-id="${r.id}" data-orig="${origVal}">
+                <option value="" ${origVal === '' ? 'selected' : ''}>--</option>
+                <option value="true" ${origVal === 'true' ? 'selected' : ''}>Yes</option>
+                <option value="false" ${origVal === 'false' ? 'selected' : ''}>No</option>
+              </select>
+            </td>
+            <td class="px-3 py-2">
+              <input type="text" class="adm-comment w-full px-3 py-2 bg-gray-800/70 border border-gray-700 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                data-id="${r.id}" data-orig-comment="${origComment}" value="${origComment}" placeholder="Optional comment" />
+            </td>
+          </tr>
+        `;
+      };
+
+      const editorPanel = `
+        <div id="editor-${availabilityOrderId}" class="hidden mb-4">
+          <div class="flex flex-wrap justify-between items-center gap-3 mb-3">
+            <div class="flex gap-2 flex-wrap">
+              <button class="adm-mark-all inline-flex items-center justify-center gap-2 px-2.5 py-1.5 text-xs font-medium text-green-300 bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 rounded-lg transition-colors" data-avail="true">Mark All Available</button>
+              <button class="adm-mark-all inline-flex items-center justify-center gap-2 px-2.5 py-1.5 text-xs font-medium text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-lg transition-colors" data-avail="false">Mark All Unavailable</button>
+            </div>
+            <div class="flex gap-2">
+              <button id="adm-cancel-${availabilityOrderId}" class="btn btn-secondary btn-sm">Cancel</button>
+              <button id="adm-save-${availabilityOrderId}" class="btn btn-primary btn-sm">Save Responses</button>
+            </div>
+          </div>
+          <div class="overflow-x-auto rounded-xl border border-gray-700/60 bg-gray-800/40">
+            <table class="w-full text-sm">
+              <thead>
+                <tr>
+                  <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Barcode</th>
+                  <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Title</th>
+                  <th class="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Qty</th>
+                  <th class="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Boxes</th>
+                  <th class="px-3 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Available</th>
+                  <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Comment</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${items.map(renderEditableRow).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+
       target.innerHTML = `
         ${actionBar}
-        ${section('Available Items', available)}
-        ${section('Unavailable Items', unavailable)}
+        ${editorPanel}
+        <div id="readonly-${availabilityOrderId}">
+          ${section('Available Items', available)}
+          ${section('Unavailable Items', unavailable)}
+        </div>
       `;
 
       const poBtn = document.getElementById(`poBtn-${availabilityOrderId}`) as HTMLButtonElement | null;
@@ -453,6 +552,62 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
           alert('PO created and email sent (if configured). View it in Purchase Orders.');
         } catch (e: any) {
           alert('Error: ' + ((e && e.message) || 'Failed to create PO'));
+        }
+      });
+
+      const editor = document.getElementById(`editor-${availabilityOrderId}`);
+      const readonlySection = document.getElementById(`readonly-${availabilityOrderId}`);
+      const editBtn = document.getElementById(`editRespBtn-${availabilityOrderId}`);
+      editBtn?.addEventListener('click', () => {
+        editor?.classList.remove('hidden');
+        readonlySection?.classList.add('hidden');
+        editBtn.classList.add('hidden');
+      });
+
+      const cancelBtn = document.getElementById(`adm-cancel-${availabilityOrderId}`);
+      cancelBtn?.addEventListener('click', () => {
+        editor?.classList.add('hidden');
+        readonlySection?.classList.remove('hidden');
+        editBtn?.classList.remove('hidden');
+      });
+
+      editor?.querySelectorAll('.adm-mark-all').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const avail = (btn as HTMLElement).getAttribute('data-avail');
+          editor.querySelectorAll('.adm-avail-select').forEach((sel: any) => { sel.value = avail; });
+        });
+      });
+
+      const saveBtn = document.getElementById(`adm-save-${availabilityOrderId}`);
+      saveBtn?.addEventListener('click', async () => {
+        const responses: any[] = [];
+        editor?.querySelectorAll('.adm-avail-select').forEach((sel: any) => {
+          const val = sel.value;
+          if (val === '') return; // leave unanswered items untouched
+          const commentInput = editor.querySelector(`.adm-comment[data-id="${sel.dataset.id}"]`) as HTMLInputElement | null;
+          const comment = commentInput?.value || '';
+          const origComment = commentInput?.dataset.origComment || '';
+          if (val === sel.dataset.orig && comment === origComment) return; // no change — don't restamp attribution
+          responses.push({ id: sel.dataset.id, is_available: val === 'true', comment: comment || null });
+        });
+
+        if (responses.length === 0) {
+          alert('No changes to save.');
+          return;
+        }
+
+        try {
+          const res = await fetch('/api/availability', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'respond', availability_order_id: availabilityOrderId, responses }),
+          });
+          if (!res.ok) throw new Error('Failed to save responses');
+          await loadAvailabilityData();
+          // loadAvailabilityData() rebuilds the table rows collapsed; re-expand this one
+          document.querySelector<HTMLButtonElement>(`.expand-btn[data-id="${availabilityOrderId}"]`)?.click();
+        } catch (e: any) {
+          alert('Error: ' + ((e && e.message) || 'Failed to save responses'));
         }
       });
     } catch (e: any) {

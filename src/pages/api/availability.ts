@@ -42,7 +42,7 @@ export const GET: APIRoute = async ({ request, cookies }) => {
 
     const { data, error } = await supabase
       .from('availability_responses')
-      .select('*, order_item:order_items(id, barcode, asin, title, order_qty, boxes, provider_cost)')
+      .select('*, order_item:order_items(id, barcode, asin, title, order_qty, boxes, provider_cost), responded_by_profile:users_profile!availability_responses_responded_by_fkey(id, email)')
       .eq('availability_order_id', availability_order_id);
 
     if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500 });
@@ -203,8 +203,19 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     });
   }
 
-  // Company action: respond to availability items
+  // Respond to availability items — company (own) or admin/super_admin (on behalf)
   if (body.action === 'respond') {
+    const { data: profile } = await supabase
+      .from('users_profile')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    const role = profile?.role;
+    if (!role || !['company', 'admin', 'super_admin'].includes(role)) {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
+    }
+
     const responses = body.responses as Array<{
       id: string;
       is_available: boolean;
@@ -225,6 +236,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
           available_qty: resp.available_qty || null,
           comment: resp.comment || null,
           responded_at: new Date().toISOString(),
+          responded_by: user.id,
+          responded_by_role: role,
         })
         .eq('id', resp.id);
 
@@ -257,20 +270,41 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         })
         .eq('id', body.availability_order_id);
 
-      // Optional: notify super admin by email when a company submits responses
+      const { data: aoRow } = await supabase
+        .from('availability_orders')
+        .select('batch_id, company_id, company:companies(name, user_id)')
+        .eq('id', body.availability_order_id)
+        .single();
+      const companyName = (aoRow as any)?.company?.name || 'Unknown Company';
+      const companyUserId = (aoRow as any)?.company?.user_id || null;
+
+      // Audit trail: log when an admin entered responses on a company's behalf
+      if (['admin', 'super_admin'].includes(role) && updated > 0) {
+        try {
+          await supabase.from('admin_actions').insert({
+            admin_id: user.id,
+            action_type: 'availability_respond_on_behalf',
+            target_user: companyUserId,
+            details: {
+              availability_order_id: body.availability_order_id,
+              company_id: (aoRow as any)?.company_id || null,
+              updated_count: updated,
+            },
+          });
+        } catch (e) {
+          // swallow audit errors; do not block API success
+        }
+      }
+
+      // Optional: notify super admin by email when responses are submitted
       try {
         const adminEmail = (import.meta as any).env?.ADMIN_NOTIFY_EMAIL as string | undefined;
         if (adminEmail) {
-          const { data: aoRow } = await supabase
-            .from('availability_orders')
-            .select('id, batch_id, company:companies(name)')
-            .eq('id', body.availability_order_id)
-            .single();
-          const companyName = (aoRow as any)?.company?.name || 'Unknown Company';
           const url = `${PUBLIC_APP_URL}/availability?batch_id=${(aoRow as any)?.batch_id || ''}`;
+          const enteredBy = role === 'company' ? companyName : `an admin (${user.email}) on behalf of ${companyName}`;
           const subject = `[KSA CRM] Availability submitted by ${companyName} (${available}/${total} available)`;
           const html = `
-            <p>Company <strong>${companyName}</strong> submitted availability.</p>
+            <p>Availability entered by <strong>${enteredBy}</strong>.</p>
             <p>
               Available: <strong>${available}</strong> ·
               Unavailable: <strong>${unavailable}</strong> ·
