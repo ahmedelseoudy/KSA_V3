@@ -93,8 +93,11 @@ export interface AvailabilityResponse {
   comment: string | null;
   responded_at: string | null;
   created_at: string;
+  responded_by: string | null;
+  responded_by_role: 'company' | 'admin' | 'super_admin' | null;
   // Joined fields
   order_item?: OrderItem;
+  responded_by_profile?: { id: string; email: string } | null;
 }
 
 export interface PurchaseOrder {

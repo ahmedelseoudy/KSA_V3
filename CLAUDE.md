@@ -67,6 +67,16 @@ Supabase-hosted Postgres. Migrations live in `supabase/migrations/`. Key helper 
 - `create_company_user()` — creates Supabase auth user for a company
 - `keep_alive_ping()` — called by GitHub Actions cron every 3 days to prevent free-tier auto-pause
 
+**After running DDL (new columns/constraints) in the SQL Editor, PostgREST's schema cache may not pick it up immediately** — an embed like `select=..., foo:other_table!some_fkey(...)` can fail with `"Could not find a relationship between ... in the schema cache"` even though the column/FK exists. Run `NOTIFY pgrst, 'reload schema';` in the SQL Editor (or Dashboard → Settings → API → "Reload schema") after any migration that adds a column/FK a PostgREST embed will reference.
+
+### Availability Response Attribution
+
+Some supplier companies can't use the portal themselves — an admin phones them, asks what's available, and enters responses on their behalf. `availability_responses` has `responded_by` (UUID, FK to `users_profile(id)`, `ON DELETE SET NULL`, explicit constraint name `availability_responses_responded_by_fkey` so PostgREST's embed syntax in `src/pages/api/availability.ts` keeps working) and `responded_by_role` (`'company' | 'admin' | 'super_admin'`, a role *snapshot* — not re-derived from the current role of the `responded_by` user — so attribution survives role changes/deletion). Added in `supabase/migrations/004_availability_response_attribution.sql`, which also backfills every pre-existing responded row as `'company'` (no admin write path existed before this migration).
+
+`POST /api/availability` `{action:'respond'}` now accepts `company`, `admin`, or `super_admin` callers (previously any logged-in user with no role check) and stamps `responded_by`/`responded_by_role` from the caller's session on every row it updates — this is last-write-wins, not merge: a company re-submitting after an admin entered data (or vice versa) overwrites the prior attribution. When an admin/super_admin submits, it also logs an `admin_actions` row (`action_type: 'availability_respond_on_behalf'`, `target_user` set to the company's linked portal user if one exists).
+
+`src/pages/availability.astro`'s admin detail view has an "Enter responses on behalf" editor mirroring the portal's respond UI (`src/pages/portal/availability.astro`); its save only submits rows whose value/comment actually changed from what was loaded (`data-orig`/`data-orig-comment`), so opening the editor and clicking Save can't blindly restamp attribution on rows the admin didn't touch — but this check is client-side only, not enforced by the API.
+
 ### Excel I/O
 
 XLSX parsing (order uploads, product bulk-import) uses the `xlsx` package. Order-item matching maps barcodes from uploaded files against the `products` table. Barcode parsing handles both string and numeric Excel cell formats.
