@@ -347,7 +347,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     });
   }
 
-  // Confirm PO (company action). RLS ensures company can only confirm their own.
+  // Confirm PO — company (own) or admin/super_admin (on behalf). RLS ensures company can only confirm their own.
   if (body.action === 'confirm') {
     const { id } = body;
     if (!id) return new Response(JSON.stringify({ error: 'id required' }), { status: 400 });
@@ -359,28 +359,50 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       .eq('id', user.id)
       .single();
 
-    if (profile?.role === 'company') {
-      const { data: po } = await supabase
-        .from('purchase_orders')
-        .select('company_id, companies:companies(user_id)')
-        .eq('id', id)
-        .single();
-      const companyUserId = (po as any)?.companies?.user_id;
+    const role = profile?.role;
+    const { data: po } = await supabase
+      .from('purchase_orders')
+      .select('company_id, companies:companies(user_id)')
+      .eq('id', id)
+      .single();
+    const companyUserId = (po as any)?.companies?.user_id || null;
+
+    if (role === 'company') {
       if (companyUserId !== user.id) {
         return new Response('Forbidden', { status: 403 });
       }
-    } else if (!['admin', 'super_admin'].includes(profile?.role || '')) {
+    } else if (!['admin', 'super_admin'].includes(role || '')) {
       return new Response('Forbidden', { status: 403 });
     }
 
     const { data, error } = await supabase
       .from('purchase_orders')
-      .update({ status: 'confirmed', confirmed_at: new Date().toISOString() })
+      .update({
+        status: 'confirmed',
+        confirmed_at: new Date().toISOString(),
+        confirmed_by: user.id,
+        confirmed_by_role: role,
+      })
       .eq('id', id)
       .select()
       .single();
 
     if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+
+    // Audit trail: log when an admin confirms a PO on a company's behalf
+    if (['admin', 'super_admin'].includes(role || '')) {
+      try {
+        await supabase.from('admin_actions').insert({
+          admin_id: user.id,
+          action_type: 'po_confirm_on_behalf',
+          target_user: companyUserId,
+          details: { purchase_order_id: id },
+        });
+      } catch (e) {
+        // swallow audit errors; do not block API success
+      }
+    }
+
     return new Response(JSON.stringify(data), {
       headers: { 'Content-Type': 'application/json' },
     });

@@ -233,6 +233,7 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
         </td>
         <td class="px-4 py-3 text-gray-400 text-sm">${new Date(po.created_at).toLocaleDateString()}</td>
         <td class="px-4 py-3 text-center space-x-3 whitespace-nowrap">
+          ${po.status === 'sent' ? `<button onclick="window.confirmPOOnBehalf('${po.id}')" class="text-sm font-medium text-green-400 hover:text-green-300 transition-colors">Confirm on behalf</button>` : ''}
           <a href="/deliveries?po_id=${po.id}" class="text-sm font-medium text-purple-400 hover:text-purple-300 transition-colors">Record Delivery</a>
           <a href="/comparison?po_id=${po.id}" class="text-sm font-medium text-purple-400 hover:text-purple-300 transition-colors">Compare</a>
         </td>
@@ -315,6 +316,20 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
       target.textContent = 'Error loading items.';
     }
   }
+
+  (window as any).confirmPOOnBehalf = async (id: string) => {
+    if (!confirm('Confirm this purchase order on behalf of the company?')) return;
+    const resp = await fetch('/api/purchase-orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'confirm', id }),
+    });
+    if (resp.ok) {
+      loadPOs();
+    } else {
+      alert('Failed to confirm.');
+    }
+  };
 
   document.getElementById('companyFilter')?.addEventListener('change', loadPOs);
   document.getElementById('statusFilter')?.addEventListener('change', loadPOs);
