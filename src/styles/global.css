@@ -327,4 +327,108 @@
   .modal-panel {
     @apply bg-gray-900 border border-gray-800 rounded-2xl shadow-modal p-6 w-full mx-4 max-h-[90vh] overflow-y-auto;
   }
+
+  .lc-track {
+    --lc-complete: rgb(var(--green-500));
+    --lc-current: rgb(var(--purple-500));
+    --lc-upcoming: rgb(var(--gray-600));
+    --lc-cancelled: rgb(var(--red-500));
+    @apply min-w-0;
+  }
+  .lc-heading {
+    @apply mb-3 flex flex-wrap items-center justify-between gap-2;
+  }
+  .lc-summary {
+    @apply text-xs font-semibold text-gray-300;
+  }
+  .lc-steps {
+    @apply grid grid-cols-5;
+  }
+  .lc-step {
+    @apply relative min-w-0 text-center;
+  }
+  .lc-step:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 0.375rem;
+    left: calc(50% + 0.5rem);
+    right: calc(-50% + 0.5rem);
+    height: 2px;
+    background: var(--lc-upcoming);
+  }
+  .lc-step--complete:not(:last-child)::after {
+    background: var(--lc-complete);
+  }
+  .lc-step--current:not(:last-child)::after {
+    background: linear-gradient(90deg, var(--lc-current) 0 50%, var(--lc-upcoming) 50% 100%);
+  }
+  .lc-dot {
+    @apply relative z-10 mx-auto block h-3 w-3 rounded-full ring-2 ring-gray-900;
+    background: var(--lc-upcoming);
+  }
+  .lc-step--complete .lc-dot {
+    background: var(--lc-complete);
+  }
+  .lc-step--current .lc-dot {
+    background: var(--lc-current);
+    box-shadow: 0 0 0 3px rgb(var(--purple-500) / 0.18);
+  }
+  .lc-step--cancelled .lc-dot {
+    background: var(--lc-cancelled);
+  }
+  .lc-step-label,
+  .lc-step-date,
+  .lc-step-metric {
+    @apply block truncate px-1;
+  }
+  .lc-step-label {
+    @apply mt-2 text-[11px] font-semibold text-gray-300;
+  }
+  .lc-step-date {
+    @apply mt-0.5 text-[11px] tabular-nums text-gray-400;
+  }
+  .lc-step-metric {
+    @apply mt-0.5 text-[10px] text-gray-500;
+  }
+  .lc-next {
+    @apply mt-3 text-xs text-gray-400;
+  }
+  .lc-next span {
+    @apply font-semibold text-gray-300;
+  }
+  .lc-warning {
+    @apply inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset;
+  }
+  .lc-warning--danger {
+    @apply bg-red-500/10 text-red-300 ring-red-500/30;
+  }
+  .lc-warning--warning {
+    @apply bg-yellow-500/10 text-yellow-300 ring-yellow-500/30;
+  }
+  .lc-warning--info {
+    @apply bg-blue-500/10 text-blue-300 ring-blue-500/30;
+  }
+  .lc-track--compact {
+    @apply flex flex-wrap items-center gap-2;
+  }
+  .lc-track--compact .lc-steps {
+    @apply w-24 shrink-0;
+  }
+  .lc-track--compact .lc-step:not(:last-child)::after {
+    top: 0.25rem;
+    left: calc(50% + 0.35rem);
+    right: calc(-50% + 0.35rem);
+  }
+  .lc-track--compact .lc-dot {
+    @apply h-2 w-2 ring-1;
+  }
+  .lc-track--detail .lc-step-label {
+    @apply text-xs;
+  }
+  .lc-track--detail .lc-step-date {
+    @apply text-xs;
+  }
+  .lc-track--detail .lc-step-metric {
+    @apply text-[11px];
+  }
 }
