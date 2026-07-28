@@ -18,6 +18,12 @@ export const GET: APIRoute = async ({ request, cookies }) => {
   const url = new URL(request.url);
   const batch_id = url.searchParams.get('batch_id') || '';
   const availability_order_id = url.searchParams.get('id') || '';
+  const include = new Set(
+    (url.searchParams.get('include') || '')
+      .split(',')
+      .map((part) => part.trim())
+      .filter(Boolean)
+  );
 
   // If requesting responses for a specific availability order
   if (availability_order_id) {
@@ -52,9 +58,17 @@ export const GET: APIRoute = async ({ request, cookies }) => {
   }
 
   // List availability orders
+  const selectParts = [
+    '*',
+    'company:companies(id, name, email)',
+  ];
+  if (include.has('batch')) {
+    selectParts.push('batch:order_batches(id, name, status, created_at)');
+  }
+
   let query = supabase
     .from('availability_orders')
-    .select('*, company:companies(id, name, email)')
+    .select(selectParts.join(', '))
     .order('created_at', { ascending: false });
 
   if (batch_id) {
@@ -81,7 +95,34 @@ export const GET: APIRoute = async ({ request, cookies }) => {
   const { data, error } = await query;
   if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500 });
 
-  return new Response(JSON.stringify({ data }), {
+  let enrichedData = data || [];
+  if (include.has('pos') && enrichedData.length > 0) {
+    const availabilityOrderIds = enrichedData.map((order: any) => order.id);
+    const { data: purchaseOrders, error: purchaseOrdersError } = await supabase
+      .from('purchase_orders')
+      .select('id, availability_order_id, company_id, status')
+      .in('availability_order_id', availabilityOrderIds)
+      .neq('status', 'cancelled');
+
+    if (purchaseOrdersError) {
+      return new Response(JSON.stringify({ error: purchaseOrdersError.message }), { status: 500 });
+    }
+
+    const purchaseOrdersByAvailability = new Map<string, any[]>();
+    for (const purchaseOrder of purchaseOrders || []) {
+      if (!purchaseOrder.availability_order_id) continue;
+      const rows = purchaseOrdersByAvailability.get(purchaseOrder.availability_order_id) || [];
+      rows.push(purchaseOrder);
+      purchaseOrdersByAvailability.set(purchaseOrder.availability_order_id, rows);
+    }
+
+    enrichedData = enrichedData.map((order: any) => ({
+      ...order,
+      purchase_orders: purchaseOrdersByAvailability.get(order.id) || [],
+    }));
+  }
+
+  return new Response(JSON.stringify({ data: enrichedData }), {
     headers: { 'Content-Type': 'application/json' },
   });
 };
