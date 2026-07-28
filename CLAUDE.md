@@ -9,6 +9,7 @@ npm run dev        # Start dev server on localhost:4321
 npm run build      # Build production bundle to ./dist/
 npm start          # Run compiled server (dist/server/entry.mjs)
 npm run preview    # Preview production build locally
+npm run test:e2e:lifecycle  # Disposable response/PO/lifecycle/RLS fixture
 ```
 
 Install with `npm install --legacy-peer-deps` (required due to peer dep conflicts).
@@ -16,6 +17,11 @@ Install with `npm install --legacy-peer-deps` (required due to peer dep conflict
 There is no unit test suite. `tests/e2e-ahmed.mjs` is a standalone end-to-end script (login → create batch → upload XLSX → send availability → generate PO) run against a live dev server:
 ```bash
 BASE_URL=http://localhost:4321 ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=... node tests/e2e-ahmed.mjs
+```
+
+`tests/e2e-lifecycle-fixture.mjs` is the repeatable regression fixture for the Phase 1/2 boundary. It creates two no-email companies and four products, produces one complete and one partial availability response, verifies default and `include_partial` PO eligibility, generates both POs once, verifies `already_generated`, validates all four migration-007 views as admin and company, and removes the batch/products/companies/audit rows/Auth user in `finally`. It also queries the database after cleanup to prove the business and audit rows are gone. It requires `ADMIN_PASSWORD`; the Supabase URL, anon key, and service-role key may come from `.env`:
+```bash
+BASE_URL=http://localhost:4321 ADMIN_PASSWORD=... npm run test:e2e:lifecycle
 ```
 
 ## Architecture
@@ -93,13 +99,24 @@ Migration `006_correctness_and_drift.sql` reconciles the previously live-only `p
 
 Delivery updates preserve the first non-zero `delivered_at` rather than re-stamping it on every note edit, recalculate each affected parent PO only once, allow a PO to move back to `confirmed`/`sent`/`draft` when quantities return to zero, and log `delivery_record` in `admin_actions`. The endpoint remains admin-only. It still has no per-PO company-ownership check; add one before any future company-side delivery write path is introduced.
 
+### Lifecycle Visibility Views
+
+Migration `007_lifecycle_visibility.sql` adds four `security_invoker` views, deriving progress from raw child rows instead of trusting drifting status fields:
+
+- `v_availability_order_progress` — one row per availability order with answered/available/unavailable/unanswered counts and quantities, response stage, first/last responder time, attribution, days waiting, and last activity.
+- `v_purchase_order_progress` — one row per PO with ordered/delivered quantities and values, confirmation/delivery stage, `awaiting_confirmation`, `ready_to_schedule`, `is_overdue`, and last activity. It deliberately does not join `order_batches`, whose RLS is admin-only.
+- `v_batch_company_lifecycle` — one current row per `(batch_id, company_id)`, using ranked availability/PO rows and a full outer join so unanswered companies with no PO remain visible.
+- `v_batch_lifecycle` — one admin-only row per batch (`order_batches.*` plus timestamps, counts, values, `lifecycle_stage`, `stage_index`, `next_action`, and `last_activity_at`).
+
+All four revoke anonymous access and grant read access to authenticated/service-role callers. Existing table RLS remains authoritative: a company JWT sees only its own rows in the first three views and sees zero rows from `v_batch_lifecycle`; admins see all four. This exact contract is exercised by `tests/e2e-lifecycle-fixture.mjs`.
+
 ### Excel I/O
 
 XLSX parsing (order uploads, product bulk-import) uses the `xlsx` package. Order-item matching maps barcodes from uploaded files against the `products` table. Barcode parsing handles both string and numeric Excel cell formats.
 
 ## Tooling
 
-This repo is indexed by CodeGraph (`.codegraph/` at the repo root, 64 files / 701 nodes / 1,924 edges as of the Phase 1 re-index on 2026-07-28). Use `codegraph explore "<symbol or question>"` (or the `codegraph_explore` MCP tool) before grep/find or reading files to locate code or trace call paths — it returns verbatim source plus caller graphs in one call. Re-run `codegraph index` after large structural changes (`codegraph init` only reports an already-initialized project).
+This repo is indexed by CodeGraph (`.codegraph/` at the repo root, 65 files / 756 nodes / 2,100 edges as of the Phase 2 foundation re-index on 2026-07-28). Use `codegraph explore "<symbol or question>"` (or the `codegraph_explore` MCP tool) before grep/find or reading files to locate code or trace call paths — it returns verbatim source plus caller graphs in one call. Re-run `codegraph index` after large structural changes (`codegraph init` only reports an already-initialized project).
 
 ## Environment Variables
 
@@ -150,7 +167,9 @@ The UI supports light and dark themes with per-module accent colors, replacing t
 
 **v3.1 Phase 1 availability redesign — DONE and deployed.** Committed as `5747a51` and pushed to `main`. `/availability` is now grouped into newest-first collapsible batch sections with derived/stored lifecycle state, response progress, per-section sorting/pagination, filters including `expired`, lazy detail rendering, scoped unavailable-item summaries/Excel export, preserved admin respond-on-behalf editing, and `?batch_id=` deep links. PO generation is per batch and gated by the server's authoritative dry run; it uses clear complete-vs-partial choices and inline company-by-company results. The misleading per-company PO button and dead duplicate generation helper were removed. `GET /api/availability?include=batch,pos` adds batch and active-PO context without changing the default portal response. Verification passed with `npm run build`, `npx tsc --noEmit --skipLibCheck`, `git diff --check`, authenticated local/production API checks, and a headless Chrome interaction (50 rows on page 1, correct zero-eligibility message, no runtime/console errors). Production currently has only pending responses, so responded/partial/eligible visual states were verified through logic and the Phase 0 disposable flow, not a retained production fixture.
 
-**Recommended next steps:** begin Phase 2 lifecycle visibility, but first add a repeatable disposable E2E fixture that covers responded, partially responded, eligible, already-generated, and cleanup states so the availability UI can be regression-tested without retaining production data. Then implement migration `007_lifecycle_visibility.sql` and validate its four security-invoker views for both admin and company callers before building the shared lifecycle renderer. Roll the renderer out in collateral-risk order: dashboard first, then purchase orders (preserving portal response shapes), then deliveries and its safer quantity-entry flow.
+**v3.1 Phase 2 foundation — DONE; UI rollout next.** Migration `007_lifecycle_visibility.sql` is applied live and schema-cache-reloaded. Its four security-invoker views were validated with the new disposable fixture: admin row counts were 2 availability / 2 PO / 2 company-lifecycle / 1 batch-lifecycle; the temporary company JWT saw only its own 1 / 1 / 1 rows and zero admin-only batch summaries. The fixture also proved full-vs-partial dry-run eligibility, two first-time PO creations, two duplicate `already_generated` results, Auth/profile provisioning, and database-confirmed cleanup. One deliberately failed provisioning attempt exposed the live `valid_approval` constraint (`approved_by` and `approved_at` are both required); the fixture now satisfies it and registers the Auth ID before profile work so cleanup also covers mid-provisioning failures.
+
+**Recommended next steps:** build `src/utils/lifecycle/{types,model,render}.ts` and the `.lc-*` themed/accessible track styles, then point `GET /api/orders` at `v_batch_lifecycle` and ship the dashboard lifecycle row first. After that, migrate the purchase-order page through a compatibility shim that preserves all existing portal response shapes; only then update deliveries and its quantity-entry safeguards.
 
 **Supabase MCP fixed.** It was failing to connect (`ERR_MODULE_NOT_FOUND: zod` from a corrupted npx cache under `~/.npm/_npx/`). Fixed by installing `@supabase/mcp-server-supabase` into a stable directory (`~/.local/share/mcp-servers/supabase`) and repointing the `claude mcp add` registration (local scope, this project dir) at `node .../dist/transports/stdio.js --project-ref=cbhllxodkfmtgfzeejka --read-only` instead of `npx -y ...`. `claude mcp list` shows it Connected. Since it's `--read-only`, DB *writes* (like applying migrations) still went through the Supabase **Management API** directly (`POST https://api.supabase.com/v1/projects/cbhllxodkfmtgfzeejka/database/query` with the PAT) rather than through the MCP server.
 

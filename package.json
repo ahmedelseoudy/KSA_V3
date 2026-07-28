@@ -11,6 +11,7 @@
     "start": "node ./dist/server/entry.mjs",
     "build": "astro build",
     "preview": "astro preview",
+    "test:e2e:lifecycle": "node tests/e2e-lifecycle-fixture.mjs",
     "astro": "astro"
   },
   "dependencies": {
