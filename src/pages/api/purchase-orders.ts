@@ -115,60 +115,170 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       return new Response('Forbidden', { status: 403 });
     }
 
-    const { batch_id, po_number, include_partial, availability_order_ids, delivery_date } = body as { batch_id?: string; po_number?: string; include_partial?: boolean; availability_order_ids?: string[]; delivery_date?: string };
+    const {
+      batch_id,
+      po_number,
+      include_partial = false,
+      availability_order_ids,
+      delivery_date,
+      dry_run = false,
+    } = body as {
+      batch_id?: string;
+      po_number?: string;
+      include_partial?: boolean;
+      availability_order_ids?: string[];
+      delivery_date?: string;
+      dry_run?: boolean;
+    };
     if (!batch_id && !(Array.isArray(availability_order_ids) && availability_order_ids.length > 0)) {
       return new Response(JSON.stringify({ error: 'Provide either batch_id or availability_order_ids[]' }), { status: 400 });
     }
 
-    // Get availability orders with available responses
-    let availOrders: { id: string; company_id: string }[] | null = null;
+    type AvailabilityOrderForPO = {
+      id: string;
+      company_id: string;
+      batch_id: string;
+      status: string;
+    };
+    type GenerationResult = {
+      availability_order_id: string;
+      company_id: string;
+      outcome: 'created' | 'would_create' | 'skipped' | 'failed';
+      reason?: string;
+      purchase_order_id?: string;
+      error?: string;
+      cleanup_error?: string;
+    };
+
+    let availOrders: AvailabilityOrderForPO[] = [];
+    let effectiveBatchId = batch_id || '';
+
     if (Array.isArray(availability_order_ids) && availability_order_ids.length > 0) {
-      const { data } = await supabase
+      const requestedIds = [...new Set(availability_order_ids)];
+      const { data, error } = await supabase
         .from('availability_orders')
-        .select('id, company_id')
-        .in('id', availability_order_ids);
-      availOrders = (data as any) || [];
-    } else {
-      const statuses = include_partial ? ['responded', 'partially_responded'] : ['responded'];
-      const { data } = await supabase
-        .from('availability_orders')
-        .select('id, company_id')
-        .eq('batch_id', batch_id as string)
-        .in('status', statuses);
-      availOrders = (data as any) || [];
-    }
+        .select('id, company_id, batch_id, status')
+        .in('id', requestedIds);
 
-    const createdPOs: any[] = [];
-
-    for (const ao of availOrders || []) {
-      // Derive PO number from availability order's batch name when not provided
-      let derivedPoNumber = po_number || '';
-      if (!derivedPoNumber) {
-        const { data: aoMeta } = await supabase
-          .from('availability_orders')
-          .select('id, batch:order_batches(name)')
-          .eq('id', ao.id)
-          .single();
-        derivedPoNumber = ((aoMeta as any)?.batch?.name || '').toString() || `PO-${new Date().toISOString().slice(0,10)}`;
+      if (error) {
+        return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+      }
+      availOrders = (data as AvailabilityOrderForPO[]) || [];
+      if (availOrders.length !== requestedIds.length) {
+        return new Response(JSON.stringify({ error: 'One or more availability orders were not found or are not accessible' }), { status: 400 });
       }
 
-      const { data: responses } = await supabase
-        .from('availability_responses')
-        .select('order_item_id, available_qty, order_item:order_items(id, order_qty, boxes, product_id, product:products(id, box_quantity, price_per_box))')
-        .eq('availability_order_id', ao.id)
-        .eq('is_available', true);
+      const batchIds = new Set(availOrders.map((ao) => ao.batch_id));
+      if (batchIds.size !== 1) {
+        return new Response(JSON.stringify({ error: 'All availability orders must belong to the same batch' }), { status: 400 });
+      }
+      effectiveBatchId = availOrders[0].batch_id;
+      if (batch_id && batch_id !== effectiveBatchId) {
+        return new Response(JSON.stringify({ error: 'batch_id does not match the selected availability orders' }), { status: 400 });
+      }
+    } else {
+      const { data, error } = await supabase
+        .from('availability_orders')
+        .select('id, company_id, batch_id, status')
+        .eq('batch_id', batch_id as string)
+        .order('created_at', { ascending: true });
 
-      if (!responses || responses.length === 0) continue;
+      if (error) {
+        return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+      }
+      availOrders = (data as AvailabilityOrderForPO[]) || [];
+    }
+
+    const { data: batch, error: batchError } = await supabase
+      .from('order_batches')
+      .select('id, name')
+      .eq('id', effectiveBatchId)
+      .single();
+    if (batchError || !batch) {
+      return new Response(JSON.stringify({ error: batchError?.message || 'Order batch not found' }), { status: batchError ? 500 : 404 });
+    }
+
+    const { data: existingPOs, error: existingError } = await supabase
+      .from('purchase_orders')
+      .select('id, company_id')
+      .eq('batch_id', effectiveBatchId)
+      .neq('status', 'cancelled');
+    if (existingError) {
+      return new Response(JSON.stringify({ error: existingError.message }), { status: 500 });
+    }
+    const existingByCompany = new Map(
+      (existingPOs || []).map((po: any) => [po.company_id, po.id])
+    );
+    const claimedCompanies = new Set(existingByCompany.keys());
+
+    const createdPOs: any[] = [];
+    const results: GenerationResult[] = [];
+    const derivedPoNumber = po_number || batch.name || `PO-${new Date().toISOString().slice(0, 10)}`;
+
+    for (const ao of availOrders) {
+      const baseResult = {
+        availability_order_id: ao.id,
+        company_id: ao.company_id,
+      };
+
+      if (claimedCompanies.has(ao.company_id)) {
+        const existingPOId = existingByCompany.get(ao.company_id);
+        results.push({
+          ...baseResult,
+          outcome: 'skipped',
+          reason: 'already_generated',
+          ...(existingPOId ? { purchase_order_id: existingPOId } : {}),
+        });
+        continue;
+      }
+
+      if (ao.status === 'pending' || ao.status === 'expired' || (ao.status === 'partially_responded' && !include_partial)) {
+        results.push({ ...baseResult, outcome: 'skipped', reason: 'not_responded' });
+        continue;
+      }
+
+      const { data: responses, error: responsesError } = await supabase
+        .from('availability_responses')
+        .select('order_item_id, is_available, available_qty, order_item:order_items(id, order_qty, boxes, product_id, product:products(id, box_quantity, price_per_box))')
+        .eq('availability_order_id', ao.id);
+
+      if (responsesError) {
+        results.push({
+          ...baseResult,
+          outcome: 'failed',
+          reason: 'responses_query_failed',
+          error: responsesError.message,
+        });
+        continue;
+      }
+
+      if (!responses || responses.length === 0) {
+        results.push({ ...baseResult, outcome: 'skipped', reason: 'no_available_items' });
+        continue;
+      }
+
+      const answeredResponses = responses.filter((response: any) => response.is_available !== null);
+      if (answeredResponses.length === 0) {
+        results.push({ ...baseResult, outcome: 'skipped', reason: 'not_responded' });
+        continue;
+      }
+
+      const availableResponses = answeredResponses.filter((response: any) => response.is_available === true);
+      if (availableResponses.length === 0) {
+        results.push({ ...baseResult, outcome: 'skipped', reason: 'all_items_unavailable' });
+        continue;
+      }
 
       let totalAmount = 0;
       const poItems: any[] = [];
 
-      for (const resp of responses) {
+      for (const resp of availableResponses) {
         const orderItem = resp.order_item as any;
         if (!orderItem) continue;
 
         const product = orderItem.product;
-        const qty = resp.available_qty || orderItem.order_qty;
+        const qty = Number(resp.available_qty ?? orderItem.order_qty);
+        if (!Number.isFinite(qty) || qty <= 0) continue;
         const boxQty = product?.box_quantity || 1;
         const pricePerBox = product?.price_per_box || 0;
         const boxes = boxQty > 0 ? qty / boxQty : 0;
@@ -185,11 +295,22 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         });
       }
 
+      if (poItems.length === 0) {
+        results.push({ ...baseResult, outcome: 'skipped', reason: 'no_resolvable_items' });
+        continue;
+      }
+
+      if (dry_run) {
+        claimedCompanies.add(ao.company_id);
+        results.push({ ...baseResult, outcome: 'would_create' });
+        continue;
+      }
+
       // Create the PO with status 'sent' so the company can act on it.
       const { data: po, error: poError } = await supabase
         .from('purchase_orders')
         .insert({
-          batch_id,
+          batch_id: effectiveBatchId,
           company_id: ao.company_id,
           po_number: derivedPoNumber,
           status: 'sent',
@@ -202,7 +323,16 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         .select('*, company:companies(id, name)')
         .single();
 
-      if (poError) continue;
+      if (poError || !po) {
+        const duplicate = poError?.code === '23505';
+        results.push({
+          ...baseResult,
+          outcome: duplicate ? 'skipped' : 'failed',
+          reason: duplicate ? 'already_generated' : 'insert_failed',
+          error: poError?.message || 'Purchase order insert returned no row',
+        });
+        continue;
+      }
 
       // Create PO items
       const poItemsData = poItems.map(item => ({
@@ -210,20 +340,52 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         ...item,
       }));
 
-      await supabase.from('purchase_order_items').insert(poItemsData);
+      const { error: itemsError } = await supabase
+        .from('purchase_order_items')
+        .insert(poItemsData);
+      if (itemsError) {
+        const { error: cleanupError } = await supabase
+          .from('purchase_orders')
+          .delete()
+          .eq('id', po.id);
+        results.push({
+          ...baseResult,
+          outcome: 'failed',
+          reason: 'items_insert_failed',
+          error: itemsError.message,
+          cleanup_error: cleanupError?.message,
+        });
+        continue;
+      }
+
       createdPOs.push(po);
+      existingByCompany.set(ao.company_id, po.id);
+      claimedCompanies.add(ao.company_id);
+      results.push({
+        ...baseResult,
+        outcome: 'created',
+        purchase_order_id: po.id,
+      });
     }
 
     // Update batch status
-    if (createdPOs.length > 0) {
-      await supabase
+    if (!dry_run && createdPOs.length > 0) {
+      const { error: batchUpdateError } = await supabase
         .from('order_batches')
         .update({ status: 'po_sent' })
-        .eq('id', batch_id);
+        .eq('id', effectiveBatchId);
+      if (batchUpdateError) {
+        return new Response(JSON.stringify({
+          error: batchUpdateError.message,
+          created: createdPOs.length,
+          data: createdPOs,
+          results,
+        }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+      }
     }
 
     // Dispatch PO emails (one per PO).
-    const dispatch = await Promise.all(
+    const dispatch = dry_run ? [] : await Promise.all(
       createdPOs.map((po: any) =>
         sendPurchaseOrderEmail(supabase, {
           company_id: po.company_id,
@@ -242,8 +404,9 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       data: createdPOs,
       emails_sent: emailsSent,
       emails_failed: emailsFailed,
+      results,
     }), {
-      status: 201,
+      status: dry_run || createdPOs.length === 0 ? 200 : 201,
       headers: { 'Content-Type': 'application/json' },
     });
   }
@@ -265,72 +428,92 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     }
 
     let updated = 0;
-    const affectedPOs: Set<string> = new Set();
+    const affectedPOs = new Map<string, string[]>();
     for (const item of items) {
       // Get current item to determine status
       const { data: current } = await supabase
         .from('purchase_order_items')
-        .select('quantity, purchase_order_id')
+        .select('quantity, purchase_order_id, delivered_at')
         .eq('id', item.id)
         .single();
 
       if (!current) continue;
 
+      const deliveredQty = Number(item.delivered_qty);
+      if (!Number.isFinite(deliveredQty) || deliveredQty < 0) continue;
+
       let deliveryStatus: 'pending' | 'partial' | 'delivered' = 'pending';
-      if (item.delivered_qty >= current.quantity) deliveryStatus = 'delivered';
-      else if (item.delivered_qty > 0) deliveryStatus = 'partial';
+      if (deliveredQty >= current.quantity) deliveryStatus = 'delivered';
+      else if (deliveredQty > 0) deliveryStatus = 'partial';
 
       const { error } = await supabase
         .from('purchase_order_items')
         .update({
-          delivered_qty: item.delivered_qty,
+          delivered_qty: deliveredQty,
           delivery_status: deliveryStatus,
           delivery_notes: item.delivery_notes || null,
-          delivered_at: item.delivered_qty > 0 ? new Date().toISOString() : null,
+          delivered_at: deliveredQty > 0 ? (current.delivered_at || new Date().toISOString()) : null,
         })
         .eq('id', item.id);
 
-      if (!error) updated++;
-      affectedPOs.add(current.purchase_order_id);
-
-      // Recalculate parent PO status
-      const { data: allItems } = await supabase
-        .from('purchase_order_items')
-        .select('delivery_status')
-        .eq('purchase_order_id', current.purchase_order_id);
-
-      const total = allItems?.length || 0;
-      const delivered = allItems?.filter((i: { delivery_status: string }) => i.delivery_status === 'delivered').length || 0;
-      const partial = allItems?.filter((i: { delivery_status: string }) => i.delivery_status === 'partial').length || 0;
-
-      let poStatus: string | null = null;
-      if (delivered === total && total > 0) poStatus = 'delivered';
-      else if (delivered > 0 || partial > 0) poStatus = 'partially_delivered';
-
-      if (poStatus) {
-        await supabase
-          .from('purchase_orders')
-          .update({ status: poStatus })
-          .eq('id', current.purchase_order_id);
+      if (!error) {
+        updated++;
+        const changedItems = affectedPOs.get(current.purchase_order_id) || [];
+        changedItems.push(item.id);
+        affectedPOs.set(current.purchase_order_id, changedItems);
       }
     }
 
-    // Dispatch delivery confirmation emails per affected PO
+    // Recalculate each parent once, audit the change, then dispatch its email.
     const emailResults: any[] = [];
-    for (const poId of affectedPOs) {
+    for (const [poId, changedItemIds] of affectedPOs) {
       const { data: po } = await supabase
         .from('purchase_orders')
-        .select('id, company_id, po_number, status')
+        .select('id, company_id, po_number, confirmed_at, sent_at, companies:companies(user_id)')
         .eq('id', poId)
         .single();
       if (!po) continue;
+
       const { data: poItems } = await supabase
         .from('purchase_order_items')
-        .select('id, quantity, delivered_qty')
+        .select('id, quantity, delivered_qty, delivery_status')
         .eq('purchase_order_id', poId);
+
       const totalItems = poItems?.length || 0;
       const deliveredCount = (poItems || []).filter((it: any) => Number(it.delivered_qty || 0) >= Number(it.quantity || 0)).length;
-      const isComplete = po.status === 'delivered' || (deliveredCount === totalItems && totalItems > 0);
+      const partialCount = (poItems || []).filter((it: any) => it.delivery_status === 'partial').length;
+
+      let poStatus: 'draft' | 'sent' | 'confirmed' | 'partially_delivered' | 'delivered';
+      if (deliveredCount === totalItems && totalItems > 0) {
+        poStatus = 'delivered';
+      } else if (deliveredCount > 0 || partialCount > 0) {
+        poStatus = 'partially_delivered';
+      } else {
+        poStatus = po.confirmed_at ? 'confirmed' : (po.sent_at ? 'sent' : 'draft');
+      }
+
+      const { error: poUpdateError } = await supabase
+        .from('purchase_orders')
+        .update({ status: poStatus })
+        .eq('id', poId);
+      if (poUpdateError) continue;
+
+      try {
+        await supabase.from('admin_actions').insert({
+          admin_id: user.id,
+          action_type: 'delivery_record',
+          target_user: (po as any)?.companies?.user_id || null,
+          details: {
+            purchase_order_id: poId,
+            purchase_order_item_ids: changedItemIds,
+            status: poStatus,
+          },
+        });
+      } catch {
+        // Audit failures must not prevent the delivery update itself.
+      }
+
+      const isComplete = poStatus === 'delivered';
       const result = await sendDeliveryConfirmationEmail(supabase, {
         company_id: po.company_id,
         purchase_order_id: po.id,

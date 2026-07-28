@@ -110,6 +110,10 @@ export interface PurchaseOrder {
   total_items: number;
   sent_at: string | null;
   confirmed_at: string | null;
+  confirmed_by: string | null;
+  confirmed_by_role: 'company' | 'admin' | 'super_admin' | null;
+  availability_order_id: string | null;
+  delivery_date: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;

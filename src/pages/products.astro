@@ -384,8 +384,13 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
   // Delete product
   (window as any).deleteProduct = async (id: string) => {
     if (!confirm('Delete this product?')) return;
-    await fetch(`/api/products?id=${id}`, { method: 'DELETE' });
-    loadProducts();
+    const resp = await fetch(`/api/products?id=${id}`, { method: 'DELETE' });
+    if (resp.ok) {
+      loadProducts();
+      return;
+    }
+    const result = await resp.json().catch(() => ({}));
+    alert(result.error || 'Failed to delete product');
   };
 
   // Init

@@ -217,13 +217,18 @@ export const PUT: APIRoute = async ({ request, cookies }) => {
     }
   }
 
-  const { error } = await supabase
+  const { data: updatedProfile, error } = await supabase
     .from('users_profile')
     .update(updates)
-    .eq('id', userId);
+    .eq('id', userId)
+    .select('id')
+    .maybeSingle();
 
   if (error) {
     return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+  if (!updatedProfile) {
+    return new Response(JSON.stringify({ error: 'User profile not found or update was not permitted' }), { status: 404 });
   }
 
   // Log admin action

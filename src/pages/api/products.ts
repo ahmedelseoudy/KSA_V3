@@ -137,3 +137,42 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     });
   }
 };
+
+export const DELETE: APIRoute = async ({ request, cookies }) => {
+  const supabase = await createAuthenticatedClient(cookies);
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return new Response('Unauthorized', { status: 401 });
+
+  const { data: profile } = await supabase
+    .from('users_profile')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
+    return new Response('Forbidden', { status: 403 });
+  }
+
+  const id = new URL(request.url).searchParams.get('id');
+  if (!id) {
+    return new Response(JSON.stringify({ error: 'id required' }), { status: 400 });
+  }
+
+  const { data: deleted, error } = await supabase
+    .from('products')
+    .delete()
+    .eq('id', id)
+    .select('id')
+    .maybeSingle();
+
+  if (error) {
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+  if (!deleted) {
+    return new Response(JSON.stringify({ error: 'Product not found or delete was not permitted' }), { status: 404 });
+  }
+
+  return new Response(JSON.stringify({ success: true }), {
+    headers: { 'Content-Type': 'application/json' },
+  });
+};

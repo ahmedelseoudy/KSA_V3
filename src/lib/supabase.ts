@@ -31,7 +31,7 @@ export const supabaseAdmin = supabaseServiceKey
 // Database types for TypeScript
 export interface UserProfile {
   id: string;
-  role: 'super_admin' | 'admin' | 'user';
+  role: 'super_admin' | 'admin' | 'company' | 'user';
   status: 'pending' | 'approved' | 'suspended';
   email: string;
   invited_by?: string;
