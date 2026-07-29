@@ -5,6 +5,7 @@
  - Creates one batch and matches four order items
  - Records one complete response and one partial response
  - Verifies default/include-partial PO eligibility, creation, and duplicate handling
+ - Locks the legacy PO list/item response shapes and lifecycle decision response
  - Verifies migration 007's four lifecycle views as admin and as a disposable company user
  - Removes the batch, products, companies, audit rows, and auth user in finally
 
@@ -426,6 +427,40 @@ try {
   assert.equal(generatedPOs.created, 2);
   assertResult(generatedPOs, completeOrder.id, 'created');
   assertResult(generatedPOs, partialOrder.id, 'created');
+  const generatedPurchaseOrderIds = generatedPOs.results
+    .map((result) => result.purchase_order_id)
+    .filter(Boolean);
+  assert.equal(generatedPurchaseOrderIds.length, 2);
+
+  const { json: legacyPOList } = await appApi(
+    `/api/purchase-orders?batch_id=${encodeURIComponent(batch.id)}`,
+    { method: 'GET' },
+    jar
+  );
+  assert.equal(legacyPOList.data.length, 2);
+  assert.equal(legacyPOList.count, 2);
+  assert.ok(legacyPOList.data.every((po) => po.company?.id && po.availability_order?.batch?.id === batch.id));
+
+  const { json: legacyPOItems } = await appApi(
+    `/api/purchase-orders?id=${encodeURIComponent(generatedPurchaseOrderIds[0])}&items=true`,
+    { method: 'GET' },
+    jar
+  );
+  assert.ok(legacyPOItems.data.length > 0);
+  assert.ok(legacyPOItems.data.every((item) => item.product && item.order_item && 'availability' in item));
+
+  const { json: lifecyclePOs } = await appApi(
+    `/api/purchase-orders?view=lifecycle&batch_id=${encodeURIComponent(batch.id)}`,
+    { method: 'GET' },
+    jar
+  );
+  assert.equal(lifecyclePOs.data.length, 2);
+  assert.equal(lifecyclePOs.count, 2);
+  assert.equal(lifecyclePOs.batches.length, 1);
+  assert.equal(lifecyclePOs.batches[0].batch.id, batch.id);
+  assert.equal(lifecyclePOs.summary.purchase_orders, 2);
+  assert.equal(lifecyclePOs.summary.awaiting_confirmation, 2);
+  assert.ok(lifecyclePOs.data.every((row) => row.po?.company?.id && row.po?.availability_order?.batch?.id === batch.id));
 
   const { status: duplicateStatus, json: duplicates } = await appApi('/api/purchase-orders', {
     method: 'POST',

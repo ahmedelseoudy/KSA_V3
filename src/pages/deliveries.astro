@@ -6,304 +6,400 @@ import StatCard from '../components/ui/StatCard.astro';
 const user = Astro.locals.user;
 const profile = (user as any)?.profile;
 
-if (!profile || !['admin', 'super_admin', 'company'].includes(profile.role)) {
-  return Astro.redirect('/dashboard');
+if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
+  return Astro.redirect(profile?.role === 'company' ? '/portal/deliveries' : '/dashboard');
 }
 ---
 
 <Layout title="Delivery Tracking - KSA CRM">
-  <div id="deliveriesRoot" class="max-w-7xl mx-auto" data-is-company={profile.role === 'company' ? '1' : '0'}>
-    <PageHeader title="Delivery Tracking" subtitle="Record and monitor deliveries against purchase orders" />
+  <div class="max-w-7xl mx-auto">
+    <PageHeader
+      title="Delivery Tracking"
+      subtitle="Record delivered quantities safely and follow fulfillment batch by batch"
+    />
 
-    <!-- Filters -->
-    <div class="flex flex-wrap items-end gap-3 bg-gray-800/60 border border-gray-700/60 rounded-xl p-3 mb-6">
-      <div id="companyFilterGroup">
-        <label class="block text-xs text-gray-500 mb-1">Company</label>
-        <select id="companyFilter" class="px-3 py-2 bg-gray-800/70 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent min-w-[12rem]">
-          <option value="">All Companies</option>
-        </select>
-      </div>
-      <div>
-        <label class="block text-xs text-gray-500 mb-1">Status</label>
-        <select id="statusFilter" class="px-3 py-2 bg-gray-800/70 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-          <option value="">All</option>
-          <option value="sent">Sent</option>
-          <option value="confirmed">Confirmed</option>
-          <option value="partially_delivered">Partially Delivered</option>
-          <option value="delivered">Delivered</option>
-        </select>
+    <div class="sticky top-0 z-20 -mx-1 px-1 py-2 bg-gray-950/80 backdrop-blur mb-4">
+      <div class="flex flex-wrap items-end gap-3 bg-gray-800/60 border border-gray-700/60 rounded-xl p-3">
+        <div>
+          <label for="companyFilter" class="block text-xs text-gray-500 mb-1">Company</label>
+          <select id="companyFilter" class="input min-w-[12rem]">
+            <option value="">All companies</option>
+          </select>
+        </div>
+        <div>
+          <label for="statusFilter" class="block text-xs text-gray-500 mb-1">PO status</label>
+          <select id="statusFilter" class="input min-w-[11rem]">
+            <option value="">All active POs</option>
+            <option value="sent">Sent</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="partially_delivered">Partially delivered</option>
+            <option value="delivered">Delivered</option>
+          </select>
+        </div>
+        <button id="refreshButton" class="btn btn-secondary btn-md">Refresh</button>
       </div>
     </div>
 
-    <!-- Stats -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-      <StatCard label="Total Deliveries" valueId="totalDeliveries" />
-      <StatCard label="Total Value" valueId="totalValue" valueClass="text-green-400" />
-      <StatCard label="Pending Delivery" valueId="pendingDelivery" valueClass="text-yellow-400" />
-      <StatCard label="Fully Delivered" valueId="fullyDelivered" valueClass="text-blue-400" />
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
+      <StatCard label="Purchase orders" valueId="totalDeliveries" />
+      <StatCard label="Ordered value" valueId="orderedValue" valueClass="text-green-400" />
+      <StatCard label="Delivered value" valueId="deliveredValue" valueClass="text-blue-400" />
+      <StatCard label="Overdue" valueId="overdueCount" valueClass="text-red-400" />
+      <StatCard label="Quantity fill rate" valueId="fillRate" valueClass="text-orange-400" />
     </div>
 
-    <!-- PO Table -->
-    <div class="bg-gray-800/40 rounded-xl border border-gray-700/60 shadow-card overflow-hidden">
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead>
-            <tr>
-              <th class="px-3 py-3 text-left bg-gray-800/80 w-8"></th>
-              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">PO Number</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Company</th>
-              <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Items</th>
-              <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Total Amount</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Delivery Date</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Availability</th>
-              <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Status</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Created</th>
-              <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Actions</th>
-            </tr>
-          </thead>
-          <tbody id="poTableBody">
-            <tr><td colspan="10" class="px-4 py-8 text-center text-gray-500 text-sm animate-pulse">Loading...</td></tr>
-          </tbody>
-        </table>
-      </div>
+    <div class="mb-4 rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-3 text-sm text-blue-300">
+      Delivered quantities start at their saved values. Nothing is submitted until you change a quantity or note and click Save.
+    </div>
+
+    <div id="deliveryBatches" class="space-y-4" aria-live="polite">
+      <div class="card p-10 text-center text-gray-500 animate-pulse">Loading delivery lifecycle…</div>
     </div>
   </div>
 </Layout>
 
 <script>
-  const ROOT = document.getElementById('deliveriesRoot') as HTMLElement | null;
-  const IS_COMPANY = (ROOT?.getAttribute('data-is-company') || '0') === '1';
-  const statusColors = {
-    draft: 'bg-gray-500/10 text-gray-300 ring-gray-500/30',
-    sent: 'bg-blue-500/10 text-blue-300 ring-blue-500/30',
-    confirmed: 'bg-purple-500/10 text-purple-300 ring-purple-500/30',
-    partially_delivered: 'bg-yellow-500/10 text-yellow-300 ring-yellow-500/30',
-    delivered: 'bg-green-500/10 text-green-300 ring-green-500/30',
-    cancelled: 'bg-red-500/10 text-red-300 ring-red-500/30',
-  } as Record<string, string>;
+  function escapeHtml(value: unknown): string {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function money(value: unknown): string {
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: 0,
+    }).format(Number(value || 0));
+  }
+
+  function date(value: unknown): string {
+    if (!value) return 'Not scheduled';
+    const parsed = new Date(String(value));
+    return Number.isNaN(parsed.getTime()) ? 'Not scheduled' : parsed.toLocaleDateString();
+  }
+
+  function statusBadge(status: string): string {
+    const classes: Record<string, string> = {
+      sent: 'badge-info',
+      confirmed: 'badge-brand',
+      partially_delivered: 'badge-warning',
+      delivered: 'badge-success',
+      cancelled: 'badge-danger',
+    };
+    return `<span class="badge ${classes[status] || 'badge-pending'}">${escapeHtml(status.replace(/_/g, ' '))}</span>`;
+  }
 
   async function loadCompanies() {
     const resp = await fetch('/api/companies');
     if (!resp.ok) return;
     const { data } = await resp.json();
     const select = document.getElementById('companyFilter') as HTMLSelectElement;
-    select.innerHTML = `<option value="">All Companies</option>${(data || []).map((c: any) => `<option value="${c.id}">${c.name}</option>`).join('')}`;
+    select.innerHTML = `<option value="">All companies</option>${(data || [])
+      .map((company: any) => `<option value="${escapeHtml(company.id)}">${escapeHtml(company.name)}</option>`)
+      .join('')}`;
   }
 
-  async function loadPurchaseOrders() {
-    const company = (document.getElementById('companyFilter') as HTMLSelectElement)?.value || '';
-    const status = (document.getElementById('statusFilter') as HTMLSelectElement)?.value || '';
-    const params = new URLSearchParams();
-    if (company) params.set('company_id', company);
-    if (status) params.set('status', status);
-
-    const resp = await fetch(`/api/purchase-orders?${params}`);
-    if (!resp.ok) return;
-    const { data } = await resp.json();
-    const pos = data || [];
-
-    // Stats
-    document.getElementById('totalDeliveries')!.textContent = String(pos.length);
-    const totalVal = pos.reduce((s: number, po: any) => s + Number(po.total_amount || 0), 0);
-    document.getElementById('totalValue')!.textContent = `$${totalVal.toFixed(0)}`;
-    document.getElementById('pendingDelivery')!.textContent = String(pos.filter((po: any) => ['sent', 'confirmed', 'partially_delivered'].includes(po.status)).length);
-    document.getElementById('fullyDelivered')!.textContent = String(pos.filter((po: any) => po.status === 'delivered').length);
-
-    renderPOs(pos);
+  function renderSummary(summary: any) {
+    document.getElementById('totalDeliveries')!.textContent = String(summary?.purchase_orders || 0);
+    document.getElementById('orderedValue')!.textContent = money(summary?.ordered_value);
+    document.getElementById('deliveredValue')!.textContent = money(summary?.delivered_value);
+    document.getElementById('overdueCount')!.textContent = String(summary?.overdue || 0);
+    document.getElementById('fillRate')!.textContent = `${Number(summary?.fill_rate || 0).toFixed(1)}%`;
   }
 
-  function renderPOs(pos: any[]) {
-    const tbody = document.getElementById('poTableBody');
-    if (!tbody) return;
+  function renderPORow(row: any): string {
+    const po = row.po;
+    const fill = Number(row.ordered_qty || 0) > 0
+      ? Math.min(100, (Number(row.delivered_qty || 0) / Number(row.ordered_qty || 0)) * 100)
+      : 0;
+    return `
+      <tr class="border-t border-gray-700/40 hover:bg-gray-800/40 transition-colors">
+        <td class="px-4 py-3">
+          <div class="font-medium text-gray-100">${escapeHtml(row.company_name || po.company?.name || 'Unknown company')}</div>
+          <div class="text-xs text-gray-500 mt-1">${escapeHtml(po.company?.email || '')}</div>
+        </td>
+        <td class="px-4 py-3">
+          <div class="font-mono text-gray-100">${escapeHtml(po.po_number || '—')}</div>
+          <div class="mt-2">${statusBadge(po.status)}</div>
+        </td>
+        <td class="px-4 py-3 text-right">
+          <div class="text-gray-100 tabular-nums">${money(row.ordered_value)}</div>
+          <div class="text-xs text-gray-500 mt-1">${Number(row.ordered_qty || 0)} units</div>
+        </td>
+        <td class="px-4 py-3 min-w-[12rem]">
+          <div class="flex justify-between text-xs text-gray-400 mb-1">
+            <span>${Number(row.delivered_qty || 0)}/${Number(row.ordered_qty || 0)} units</span>
+            <span>${fill.toFixed(0)}%</span>
+          </div>
+          <div class="h-1.5 rounded-full bg-gray-700 overflow-hidden">
+            <div class="h-full bg-orange-500 rounded-full" style="width:${fill}%"></div>
+          </div>
+          <div class="text-xs ${row.is_overdue ? 'text-red-400' : 'text-gray-500'} mt-1">
+            ${row.is_overdue ? 'Overdue · ' : ''}${date(row.delivery_date)}
+          </div>
+        </td>
+        <td class="px-4 py-3">
+          <button
+            class="edit-delivery btn btn-secondary btn-sm"
+            data-po-id="${escapeHtml(po.id)}"
+            aria-expanded="false"
+            aria-controls="delivery-items-${escapeHtml(po.id)}"
+          >Edit quantities</button>
+        </td>
+      </tr>
+      <tr id="delivery-items-${escapeHtml(po.id)}" class="hidden bg-gray-900/40" data-loaded="false">
+        <td colspan="5" class="px-4 py-4">
+          <div id="delivery-items-content-${escapeHtml(po.id)}" class="text-sm text-gray-500 animate-pulse">Loading items…</div>
+        </td>
+      </tr>
+    `;
+  }
 
-    if (pos.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="10" class="py-12 text-center text-gray-400 text-sm">No purchase orders found.</td></tr>';
+  function renderBatch(group: any, index: number): string {
+    const rows = (group.rows || []).filter((row: any) => row.po && row.po.status !== 'cancelled');
+    if (rows.length === 0) return '';
+    const orderedValue = rows.reduce((sum: number, row: any) => sum + Number(row.ordered_value || 0), 0);
+    const deliveredValue = rows.reduce((sum: number, row: any) => sum + Number(row.delivered_value || 0), 0);
+    const overdue = rows.filter((row: any) => row.is_overdue).length;
+    const expanded = index < 3;
+    return `
+      <section class="card overflow-hidden">
+        <button class="batch-toggle w-full p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 text-left hover:bg-gray-800/30" aria-expanded="${expanded}" aria-controls="delivery-batch-${escapeHtml(group.batch.id)}">
+          <div>
+            <div class="flex flex-wrap items-center gap-2">
+              <h2 class="text-base font-semibold text-gray-100">${escapeHtml(group.batch.name || 'Unknown batch')}</h2>
+              ${overdue ? `<span class="badge badge-danger">${overdue} overdue</span>` : ''}
+            </div>
+            <p class="text-xs text-gray-500 mt-1">${rows.length} purchase orders</p>
+          </div>
+          <div class="flex items-center gap-4 text-sm">
+            <span class="text-gray-400">${money(deliveredValue)} / ${money(orderedValue)} delivered</span>
+            <span class="batch-icon text-gray-400 text-lg">${expanded ? '−' : '+'}</span>
+          </div>
+        </button>
+        <div id="delivery-batch-${escapeHtml(group.batch.id)}" class="${expanded ? '' : 'hidden'} border-t border-gray-700/60">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr>
+                  <th class="table-header-cell text-left">Company</th>
+                  <th class="table-header-cell text-left">Purchase order</th>
+                  <th class="table-header-cell text-right">Ordered</th>
+                  <th class="table-header-cell text-left">Fulfillment</th>
+                  <th class="table-header-cell text-left">Action</th>
+                </tr>
+              </thead>
+              <tbody>${rows.map(renderPORow).join('')}</tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    `;
+  }
+
+  function itemEditor(poId: string, items: any[]): string {
+    if (items.length === 0) return '<div class="text-gray-500">No items in this purchase order.</div>';
+    return `
+      <div class="overflow-x-auto rounded-lg border border-gray-700/40">
+        <table class="w-full text-sm">
+          <thead>
+            <tr>
+              <th class="table-header-cell text-left">Product</th>
+              <th class="table-header-cell text-right">Ordered</th>
+              <th class="table-header-cell text-right">Delivered</th>
+              <th class="table-header-cell text-left">Notes</th>
+              <th class="table-header-cell text-left">State</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${items.map((item: any) => {
+              const delivered = Number(item.delivered_qty ?? 0);
+              const notes = String(item.delivery_notes || '');
+              return `
+                <tr class="delivery-item border-t border-gray-700/40" data-item-id="${escapeHtml(item.id)}">
+                  <td class="px-3 py-2 text-gray-100">${escapeHtml(item.product?.title || item.product?.barcode || '—')}</td>
+                  <td class="px-3 py-2 text-right text-gray-200 tabular-nums">${Number(item.quantity || 0)}</td>
+                  <td class="px-3 py-2 text-right">
+                    <input
+                      type="number"
+                      class="delivered-input input w-24 text-right tabular-nums"
+                      data-item-id="${escapeHtml(item.id)}"
+                      data-original="${delivered}"
+                      data-delivery-status="${escapeHtml(item.delivery_status || 'pending')}"
+                      value="${delivered}"
+                      min="0"
+                      max="${Number(item.quantity || 0)}"
+                    />
+                  </td>
+                  <td class="px-3 py-2">
+                    <input
+                      type="text"
+                      class="notes-input input min-w-[14rem]"
+                      data-item-id="${escapeHtml(item.id)}"
+                      data-original="${escapeHtml(notes)}"
+                      value="${escapeHtml(notes)}"
+                      placeholder="Delivery notes"
+                    />
+                  </td>
+                  <td class="px-3 py-2">${statusBadge(item.delivery_status || 'pending')}</td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div class="mt-3 flex flex-wrap items-center justify-end gap-3">
+        <span id="save-status-${escapeHtml(poId)}" class="text-sm text-gray-500"></span>
+        <button class="save-deliveries btn btn-primary btn-md" data-po-id="${escapeHtml(poId)}">Save changed items</button>
+      </div>
+    `;
+  }
+
+  async function loadPOItems(poId: string) {
+    const target = document.getElementById(`delivery-items-content-${poId}`);
+    if (!target) return;
+    try {
+      const resp = await fetch(`/api/purchase-orders?id=${encodeURIComponent(poId)}&items=true`);
+      const json = await resp.json();
+      if (!resp.ok) throw new Error(json.error || 'Request failed');
+      target.classList.remove('animate-pulse');
+      target.innerHTML = itemEditor(poId, Array.isArray(json.data) ? json.data : []);
+      target.querySelector('.save-deliveries')?.addEventListener('click', () => saveChangedItems(poId));
+    } catch (error) {
+      target.classList.remove('animate-pulse');
+      target.textContent = error instanceof Error ? error.message : 'Failed to load items.';
+    }
+  }
+
+  function changedItems(poId: string): { items: any[]; error: string | null } {
+    const target = document.getElementById(`delivery-items-content-${poId}`);
+    if (!target) return { items: [], error: 'Editor not found.' };
+    const items: any[] = [];
+    for (const row of target.querySelectorAll<HTMLElement>('.delivery-item')) {
+      const quantity = row.querySelector<HTMLInputElement>('.delivered-input')!;
+      const notes = row.querySelector<HTMLInputElement>('.notes-input')!;
+      const delivered = Number(quantity.value);
+      const max = Number(quantity.max);
+      if (!Number.isInteger(delivered) || delivered < 0 || delivered > max) {
+        return { items: [], error: `Delivered quantity must be a whole number between 0 and ${max}.` };
+      }
+      if (
+        delivered !== Number(quantity.dataset.original || 0) ||
+        notes.value !== (notes.dataset.original || '')
+      ) {
+        items.push({
+          id: row.dataset.itemId,
+          delivered_qty: delivered,
+          delivery_notes: notes.value,
+        });
+      }
+    }
+    return { items, error: null };
+  }
+
+  async function saveChangedItems(poId: string) {
+    const status = document.getElementById(`save-status-${poId}`)!;
+    const changes = changedItems(poId);
+    if (changes.error) {
+      status.className = 'text-sm text-red-400';
+      status.textContent = changes.error;
+      return;
+    }
+    if (changes.items.length === 0) {
+      status.className = 'text-sm text-gray-500';
+      status.textContent = 'No changes to save.';
       return;
     }
 
-    tbody.innerHTML = pos.map(po => {
-      const delivery = po.delivery_date ? new Date(po.delivery_date).toLocaleDateString() : '-';
-      const batchId = po.availability_order?.batch?.id || po.availability_order?.batch_id || po.batch_id || '';
-      const availabilityLink = batchId ? `<a href="/availability?batch_id=${batchId}" class="text-sm font-medium text-purple-400 hover:text-purple-300 transition-colors">View</a>` : '-';
-      return `
-      <tr class="border-t border-gray-700/40 hover:bg-gray-800/40 transition-colors group" data-row="${po.id}">
-        <td class="px-3 py-3 align-top">
-          <button class="po-expand-btn w-6 h-6 inline-flex items-center justify-center rounded-md bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 hover:text-white text-xs transition-colors" aria-expanded="false" aria-controls="po-details-${po.id}" data-id="${po.id}">+</button>
-        </td>
-        <td class="px-4 py-3 text-white font-mono">${po.po_number || '-'}</td>
-        <td class="px-4 py-3 text-white">${po.company?.name || '-'}</td>
-        <td class="px-4 py-3 text-right text-white tabular-nums">${po.total_items}</td>
-        <td class="px-4 py-3 text-right text-white tabular-nums">$${Number(po.total_amount || 0).toFixed(2)}</td>
-        <td class="px-4 py-3 text-white">${delivery}</td>
-        <td class="px-4 py-3">${availabilityLink}</td>
-        <td class="px-4 py-3 text-center">
-          <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded-full ring-1 ring-inset ${statusColors[po.status] || 'bg-gray-500/10 text-gray-300 ring-gray-500/30'}">${po.status.replace(/_/g, ' ')}</span>
-        </td>
-        <td class="px-4 py-3 text-gray-400 text-sm">${new Date(po.created_at).toLocaleDateString()}</td>
-        <td class="px-4 py-3 text-center">
-          <a href="/comparison?po_id=${po.id}" class="text-sm font-medium text-purple-400 hover:text-purple-300 transition-colors">Compare</a>
-        </td>
-      </tr>
-      <tr id="po-details-${po.id}" class="hidden border-t border-gray-700/40 bg-gray-900/40" data-loaded="false">
-        <td></td>
-        <td class="px-4 py-4" colspan="9">
-          <div class="text-gray-400 text-sm" id="po-details-content-${po.id}"><span class="text-gray-500 text-sm animate-pulse">Loading items...</span></div>
-        </td>
-      </tr>
-    `}).join('');
+    status.className = 'text-sm text-gray-500';
+    status.textContent = 'Saving…';
+    const resp = await fetch('/api/purchase-orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'update_delivery', items: changes.items }),
+    });
+    const json = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+      status.className = 'text-sm text-red-400';
+      status.textContent = json.error || 'Failed to save deliveries.';
+      return;
+    }
 
-    // Wire expand/collapse and lazy-load items
-    const btns = tbody.querySelectorAll('.po-expand-btn');
-    btns.forEach((btn) => {
-      btn.addEventListener('click', async (e) => {
-        e.preventDefault();
-        const id = (e.currentTarget as HTMLElement).getAttribute('data-id');
-        if (!id) return;
-        const row = document.getElementById(`po-details-${id}`)!;
-        const btnEl = e.currentTarget as HTMLButtonElement;
-        const expanded = btnEl.getAttribute('aria-expanded') === 'true';
-        if (expanded) {
-          btnEl.setAttribute('aria-expanded', 'false');
-          btnEl.textContent = '+';
-          row.classList.add('hidden');
-          return;
-        }
-        btnEl.setAttribute('aria-expanded', 'true');
-        btnEl.textContent = '−';
-        row.classList.remove('hidden');
-        if (row.getAttribute('data-loaded') !== 'true') {
-          await loadPOItems(id);
-          row.setAttribute('data-loaded', 'true');
+    status.className = 'text-sm text-green-400';
+    status.textContent = `Saved ${changes.items.length} changed ${changes.items.length === 1 ? 'item' : 'items'}.`;
+    await loadDeliveries(poId);
+  }
+
+  function wireActions() {
+    document.querySelectorAll('.batch-toggle').forEach((button) => {
+      button.addEventListener('click', () => {
+        const target = document.getElementById(button.getAttribute('aria-controls') || '');
+        if (!target) return;
+        const expanded = button.getAttribute('aria-expanded') === 'true';
+        button.setAttribute('aria-expanded', String(!expanded));
+        target.classList.toggle('hidden', expanded);
+        const icon = button.querySelector('.batch-icon');
+        if (icon) icon.textContent = expanded ? '+' : '−';
+      });
+    });
+
+    document.querySelectorAll('.edit-delivery').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const poId = (button as HTMLElement).dataset.poId;
+        if (!poId) return;
+        const row = document.getElementById(`delivery-items-${poId}`);
+        if (!row) return;
+        const expanded = button.getAttribute('aria-expanded') === 'true';
+        button.setAttribute('aria-expanded', String(!expanded));
+        button.textContent = expanded ? 'Edit quantities' : 'Close editor';
+        row.classList.toggle('hidden', expanded);
+        if (!expanded && row.dataset.loaded !== 'true') {
+          await loadPOItems(poId);
+          row.dataset.loaded = 'true';
         }
       });
     });
   }
 
-  async function loadPOItems(poId: string) {
-    const container = document.getElementById(`po-details-content-${poId}`);
-    if (!container) return;
-    container.innerHTML = '<div class="text-gray-500 text-sm animate-pulse">Loading items...</div>';
+  async function loadDeliveries(focusPo = '') {
+    const container = document.getElementById('deliveryBatches')!;
+    container.innerHTML = '<div class="card p-10 text-center text-gray-500 animate-pulse">Loading delivery lifecycle…</div>';
+    const params = new URLSearchParams({ view: 'lifecycle' });
+    const company = (document.getElementById('companyFilter') as HTMLSelectElement)?.value;
+    const status = (document.getElementById('statusFilter') as HTMLSelectElement)?.value;
+    if (company) params.set('company_id', company);
+    if (status) params.set('status', status);
 
-    const resp = await fetch(`/api/purchase-orders?id=${poId}&items=true`);
-    if (!resp.ok) return;
-    const { data } = await resp.json();
-
-    const canEdit = !IS_COMPANY;
-    container.innerHTML = `
-      <div>
-        <div class="overflow-x-auto rounded-lg border border-gray-700/40 bg-gray-800/40">
-          <table class="w-full text-sm">
-            <thead>
-              <tr>
-                <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Product</th>
-                <th class="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Ordered</th>
-                <th class="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Boxes</th>
-                <th class="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Price</th>
-                <th class="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Delivered</th>
-                <th class="px-3 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Status</th>
-                <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Notes</th>
-                ${canEdit ? '<th class="px-3 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Action</th>' : ''}
-              </tr>
-            </thead>
-            <tbody>
-              ${(data || []).map((item: any) => `
-                <tr class="border-t border-gray-700/40 hover:bg-gray-800/40 transition-colors" data-item-id="${item.id}">
-                  <td class="px-3 py-2 text-white">${item.product?.title || item.product?.barcode || '-'}</td>
-                  <td class="px-3 py-2 text-right text-white tabular-nums">${item.quantity}</td>
-                  <td class="px-3 py-2 text-right text-white tabular-nums">${Number(item.boxes).toFixed(1)}</td>
-                  <td class="px-3 py-2 text-right text-white tabular-nums">$${Number(item.total_price).toFixed(2)}</td>
-                  <td class="px-3 py-2 text-right">
-                    <input type="number" class="delivered-input w-20 px-2.5 py-1.5 bg-gray-800/70 border border-gray-700 rounded-lg text-white text-xs text-right tabular-nums placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed" ${canEdit ? '' : 'disabled'}
-                      data-item-id="${item.id}" value="${(item.delivery_status === 'pending' ? item.quantity : (item.delivered_qty ?? 0))}" min="0" max="${item.quantity}" />
-                  </td>
-                  <td class="px-3 py-2 text-center">
-                    <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded-full ring-1 ring-inset ${
-                      item.delivery_status === 'delivered' ? 'bg-green-500/10 text-green-300 ring-green-500/30' :
-                      item.delivery_status === 'partial' ? 'bg-yellow-500/10 text-yellow-300 ring-yellow-500/30' :
-                      'bg-gray-500/10 text-gray-300 ring-gray-500/30'
-                    }">${item.delivery_status}</span>
-                  </td>
-                  <td class="px-3 py-2">
-                    <input type="text" class="notes-input w-full px-2.5 py-1.5 bg-gray-800/70 border border-gray-700 rounded-lg text-white text-xs placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed" ${canEdit ? '' : 'disabled'}
-                      data-item-id="${item.id}" value="${item.delivery_notes || ''}" placeholder="Notes..." />
-                  </td>
-                  ${canEdit ? `<td class=\"px-3 py-2 text-center\"><button onclick=\"window.saveDelivery('${item.id}', '${poId}')\" class=\"inline-flex items-center justify-center px-2.5 py-1.5 text-xs font-medium text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 rounded-lg transition-colors\">Save</button></td>` : ''}
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
-        ${canEdit ? `<div class=\"mt-3 flex justify-end\"><button onclick=\"window.saveAllDeliveries('${poId}')\" class=\"btn btn-primary btn-md\">Save All Changes</button></div>` : ''}
-      </div>
-    `;
-  }
-
-  (window as any).saveDelivery = async (itemId: string, poId: string) => {
-    const container = document.getElementById(`po-details-content-${poId}`);
-    if (!container) return;
-
-    const deliveredInput = container.querySelector(`.delivered-input[data-item-id="${itemId}"]`) as HTMLInputElement;
-    const notesInput = container.querySelector(`.notes-input[data-item-id="${itemId}"]`) as HTMLInputElement;
-
-    const resp = await fetch('/api/purchase-orders', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'update_delivery',
-        items: [{ id: itemId, delivered_qty: parseInt(deliveredInput.value) || 0, delivery_notes: notesInput.value }],
-      }),
-    });
-
-    if (resp.ok) {
-      const json = await resp.json().catch(() => ({}));
-      alert(`Saved. Emails dispatched: ${json.emails_dispatched ?? 0}`);
-      loadPurchaseOrders();
-    } else alert('Failed to save delivery');
-  };
-
-  (window as any).saveAllDeliveries = async (poId: string) => {
-    const container = document.getElementById(`po-details-content-${poId}`);
-    if (!container) return;
-
-    const items: any[] = [];
-    container.querySelectorAll('.delivered-input').forEach((input: any) => {
-      const itemId = input.dataset.itemId;
-      const notesInput = container.querySelector(`.notes-input[data-item-id="${itemId}"]`) as HTMLInputElement;
-      items.push({ id: itemId, delivered_qty: parseInt(input.value) || 0, delivery_notes: notesInput?.value || '' });
-    });
-
-    const resp = await fetch('/api/purchase-orders', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'update_delivery', items }),
-    });
-
-    if (resp.ok) {
-      const json = await resp.json().catch(() => ({}));
-      alert(`Deliveries saved successfully. Emails dispatched: ${json.emails_dispatched ?? 0}`);
-      loadPurchaseOrders();
-    } else alert('Failed to save deliveries');
-  };
-
-  document.getElementById('companyFilter')?.addEventListener('change', loadPurchaseOrders);
-  document.getElementById('statusFilter')?.addEventListener('change', loadPurchaseOrders);
-
-  async function init() {
-    if ((ROOT?.getAttribute('data-is-company') || '0') === '1') {
-      document.getElementById('companyFilterGroup')?.classList.add('hidden');
-    } else {
-      await loadCompanies();
-    }
-    await loadPurchaseOrders();
-    const params = new URLSearchParams(window.location.search);
-    const focusPo = params.get('po_id');
-    if (focusPo) {
-      setTimeout(() => {
-        const btn = document.querySelector(`.po-expand-btn[data-id="${focusPo}"]`) as HTMLButtonElement | null;
-        if (btn) btn.click();
-        document.getElementById(`po-details-${focusPo}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 100);
+    try {
+      const resp = await fetch(`/api/purchase-orders?${params}`);
+      const json = await resp.json();
+      if (!resp.ok) throw new Error(json.error || 'Request failed');
+      renderSummary(json.summary);
+      const groups = (json.batches || []).filter((group: any) =>
+        (group.rows || []).some((row: any) => row.po && row.po.status !== 'cancelled')
+      );
+      container.innerHTML = groups.length
+        ? groups.map(renderBatch).join('')
+        : '<div class="card p-10 text-center text-gray-400">No purchase orders match these filters.</div>';
+      wireActions();
+      if (focusPo) {
+        const button = container.querySelector<HTMLButtonElement>(`.edit-delivery[data-po-id="${CSS.escape(focusPo)}"]`);
+        button?.click();
+        button?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    } catch (error) {
+      container.innerHTML = `<div class="card p-10 text-center text-red-400">${escapeHtml(error instanceof Error ? error.message : 'Failed to load deliveries.')}</div>`;
     }
   }
-  init();
+
+  document.getElementById('companyFilter')?.addEventListener('change', () => loadDeliveries());
+  document.getElementById('statusFilter')?.addEventListener('change', () => loadDeliveries());
+  document.getElementById('refreshButton')?.addEventListener('click', () => loadDeliveries());
+
+  loadCompanies();
+  loadDeliveries(new URLSearchParams(window.location.search).get('po_id') || '');
 </script>

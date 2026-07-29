@@ -13,327 +13,375 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
 
 <Layout title="Purchase Orders - KSA CRM">
   <div class="max-w-7xl mx-auto">
-    <PageHeader title="Purchase Orders" subtitle="Browse, filter, and track purchase orders sent to your supplier companies" />
+    <PageHeader
+      title="Purchase Orders"
+      subtitle="Follow every company from availability response through confirmation and delivery"
+    />
 
-    <!-- Filters -->
     <div class="sticky top-0 z-20 -mx-1 px-1 py-2 bg-gray-950/80 backdrop-blur mb-4">
       <div class="flex flex-wrap items-end gap-3 bg-gray-800/60 border border-gray-700/60 rounded-xl p-3">
         <div>
-          <label class="block text-xs text-gray-500 mb-1">Company</label>
-          <select id="companyFilter" class="px-3 py-2 bg-gray-800/70 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent min-w-[12rem]">
-            <option value="">All Companies</option>
+          <label for="companyFilter" class="block text-xs text-gray-500 mb-1">Company</label>
+          <select id="companyFilter" class="input min-w-[12rem]">
+            <option value="">All companies</option>
           </select>
         </div>
         <div>
-          <label class="block text-xs text-gray-500 mb-1">Status</label>
-          <select id="statusFilter" class="px-3 py-2 bg-gray-800/70 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-            <option value="">All</option>
+          <label for="statusFilter" class="block text-xs text-gray-500 mb-1">PO status</label>
+          <select id="statusFilter" class="input min-w-[11rem]">
+            <option value="">All statuses</option>
             <option value="draft">Draft</option>
             <option value="sent">Sent</option>
             <option value="confirmed">Confirmed</option>
-            <option value="partially_delivered">Partially Delivered</option>
+            <option value="partially_delivered">Partially delivered</option>
             <option value="delivered">Delivered</option>
             <option value="cancelled">Cancelled</option>
           </select>
         </div>
+        <button id="refreshButton" class="btn btn-secondary btn-md">Refresh</button>
       </div>
     </div>
 
-    <!-- Stats -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-      <StatCard label="Total POs" valueId="totalPOs" />
-      <StatCard label="Total Value" valueId="totalValue" valueClass="text-green-400" />
-      <StatCard label="Pending Delivery" valueId="pendingDelivery" valueClass="text-yellow-400" />
-      <StatCard label="Fully Delivered" valueId="fullyDelivered" valueClass="text-blue-400" />
+    <div class="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-6">
+      <StatCard label="Purchase orders" valueId="totalPOs" />
+      <StatCard label="Ordered value" valueId="orderedValue" valueClass="text-green-400" />
+      <StatCard label="Awaiting confirmation" valueId="awaitingConfirmation" valueClass="text-yellow-400" />
+      <StatCard label="Ready for delivery" valueId="readyToSchedule" valueClass="text-blue-400" />
+      <StatCard label="Overdue" valueId="overdueCount" valueClass="text-red-400" />
+      <StatCard label="Quantity fill rate" valueId="fillRate" valueClass="text-purple-400" />
     </div>
 
-    <!-- PO Table -->
-    <div class="bg-gray-800/40 rounded-xl border border-gray-700/60 shadow-card overflow-hidden">
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead class="sticky top-0 z-10">
-            <tr>
-              <th class="px-3 py-3 text-left bg-gray-800/80 w-8"></th>
-              <th data-sort="po_number" class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80 cursor-pointer select-none">PO Number <span class="text-gray-500 sort" data-key="po_number"></span></th>
-              <th data-sort="company_name" class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80 cursor-pointer select-none">Company <span class="text-gray-500 sort" data-key="company_name"></span></th>
-              <th data-sort="items" class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80 cursor-pointer select-none">Items <span class="text-gray-500 sort" data-key="items"></span></th>
-              <th data-sort="total_amount" class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80 cursor-pointer select-none">Total Amount <span class="text-gray-500 sort" data-key="total_amount"></span></th>
-              <th data-sort="delivery_date" class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80 cursor-pointer select-none">Delivery Date <span class="text-gray-500 sort" data-key="delivery_date"></span></th>
-              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Availability</th>
-              <th data-sort="status" class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80 cursor-pointer select-none">Status <span class="text-gray-500 sort" data-key="status"></span></th>
-              <th data-sort="created_at" class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80 cursor-pointer select-none">Created <span class="text-gray-500 sort" data-key="created_at"></span></th>
-              <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Actions</th>
-            </tr>
-          </thead>
-          <tbody id="poTableBody">
-            <tr><td colspan="10" class="px-4 py-8 text-center text-gray-500 text-sm animate-pulse">Loading...</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="flex flex-col md:flex-row items-center justify-between gap-3 p-3 border-t border-gray-700/60 bg-gray-800/60">
-        <div class="flex items-center gap-2 text-sm text-gray-400">
-          <label for="poPageSize">Rows per page</label>
-          <select id="poPageSize" class="px-3 py-2 bg-gray-800/70 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-            <option value="10">10</option>
-            <option value="20" selected>20</option>
-            <option value="50">50</option>
-            <option value="100">100</option>
-          </select>
-        </div>
-        <div class="flex items-center gap-2">
-          <button id="poPrev" class="btn btn-secondary btn-sm disabled:opacity-50 disabled:cursor-not-allowed">Prev</button>
-          <span id="poPageInfo" class="text-sm text-gray-400 tabular-nums">-</span>
-          <button id="poNext" class="btn btn-secondary btn-sm disabled:opacity-50 disabled:cursor-not-allowed">Next</button>
-        </div>
-      </div>
+    <div id="purchaseOrderBatches" class="space-y-4" aria-live="polite">
+      <div class="card p-10 text-center text-gray-500 animate-pulse">Loading purchase-order lifecycle…</div>
     </div>
   </div>
 </Layout>
 
 <script>
-  const statusColors: Record<string, string> = {
-    draft: 'bg-gray-500/10 text-gray-300 ring-gray-500/30',
-    sent: 'bg-blue-500/10 text-blue-300 ring-blue-500/30',
-    confirmed: 'bg-purple-500/10 text-purple-300 ring-purple-500/30',
-    partially_delivered: 'bg-yellow-500/10 text-yellow-300 ring-yellow-500/30',
-    delivered: 'bg-green-500/10 text-green-300 ring-green-500/30',
-    cancelled: 'bg-red-500/10 text-red-300 ring-red-500/30',
+  const statusClasses: Record<string, string> = {
+    draft: 'badge-pending',
+    sent: 'badge-info',
+    confirmed: 'badge-brand',
+    partially_delivered: 'badge-warning',
+    delivered: 'badge-success',
+    cancelled: 'badge-danger',
   };
+
+  const lifecycleClasses: Record<string, string> = {
+    awaiting_response: 'badge-pending',
+    partial_response: 'badge-warning',
+    expired: 'badge-danger',
+    ready_for_po: 'badge-info',
+    nothing_to_order: 'badge-pending',
+    draft: 'badge-pending',
+    sent: 'badge-info',
+    awaiting_confirmation: 'badge-warning',
+    ready_to_schedule: 'badge-brand',
+    partially_delivered: 'badge-warning',
+    delivered: 'badge-success',
+    cancelled: 'badge-danger',
+  };
+
+  function escapeHtml(value: unknown): string {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function money(value: unknown): string {
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: 0,
+    }).format(Number(value || 0));
+  }
+
+  function date(value: unknown): string {
+    if (!value) return '—';
+    const parsed = new Date(String(value));
+    return Number.isNaN(parsed.getTime()) ? '—' : parsed.toLocaleDateString();
+  }
+
+  function label(value: unknown): string {
+    const text = String(value || '');
+    return text ? text.replace(/_/g, ' ') : 'Not started';
+  }
+
+  function badge(value: unknown, lifecycle = false): string {
+    const key = String(value || '');
+    const classes = (lifecycle ? lifecycleClasses[key] : statusClasses[key]) || 'badge-pending';
+    return `<span class="badge ${classes}">${escapeHtml(label(key))}</span>`;
+  }
 
   async function loadCompanies() {
     const resp = await fetch('/api/companies');
     if (!resp.ok) return;
     const { data } = await resp.json();
     const select = document.getElementById('companyFilter') as HTMLSelectElement;
-    select.innerHTML = `<option value="">All Companies</option>${(data || []).map((c: any) => `<option value="${c.id}">${c.name}</option>`).join('')}`;
+    select.innerHTML = `<option value="">All companies</option>${(data || [])
+      .map((company: any) => `<option value="${escapeHtml(company.id)}">${escapeHtml(company.name)}</option>`)
+      .join('')}`;
   }
 
-  async function loadPOs() {
-    const company = (document.getElementById('companyFilter') as HTMLSelectElement)?.value || '';
-    const status = (document.getElementById('statusFilter') as HTMLSelectElement)?.value || '';
-    const params = new URLSearchParams();
-    if (company) params.set('company_id', company);
-    if (status) params.set('status', status);
-
-    const resp = await fetch(`/api/purchase-orders?${params}`);
-    if (!resp.ok) return;
-    const { data, count } = await resp.json();
-
-    // Stats
-    const pos = data || [];
-    document.getElementById('totalPOs')!.textContent = String(pos.length);
-    const totalVal = pos.reduce((s: number, po: any) => s + Number(po.total_amount || 0), 0);
-    document.getElementById('totalValue')!.textContent = `$${totalVal.toFixed(0)}`;
-    document.getElementById('pendingDelivery')!.textContent = String(pos.filter((po: any) => ['sent', 'confirmed', 'partially_delivered'].includes(po.status)).length);
-    document.getElementById('fullyDelivered')!.textContent = String(pos.filter((po: any) => po.status === 'delivered').length);
-
-    // Initialize client-side state for sorting and paging
-    window.__PO_STATE__ = window.__PO_STATE__ || { sortKey: 'created_at', sortDir: 'desc', page: 1, pageSize: 20, data: [] };
-    const st = window.__PO_STATE__;
-    st.data = pos;
-    applySortingAndPaging();
+  function renderSummary(summary: any) {
+    document.getElementById('totalPOs')!.textContent = String(summary?.purchase_orders || 0);
+    document.getElementById('orderedValue')!.textContent = money(summary?.ordered_value);
+    document.getElementById('awaitingConfirmation')!.textContent = String(summary?.awaiting_confirmation || 0);
+    document.getElementById('readyToSchedule')!.textContent = String(summary?.ready_to_schedule || 0);
+    document.getElementById('overdueCount')!.textContent = String(summary?.overdue || 0);
+    document.getElementById('fillRate')!.textContent = `${Number(summary?.fill_rate || 0).toFixed(1)}%`;
   }
 
-  function getSortValue(po: any, key: string) {
-    switch (key) {
-      case 'po_number': return (po.po_number || '').toString();
-      case 'company_name': return (po.company?.name || '').toString();
-      case 'items': return Number(po.total_items || 0);
-      case 'total_amount': return Number(po.total_amount || 0);
-      case 'delivery_date': return (po.delivery_date || '');
-      case 'status': return (po.status || '');
-      case 'created_at': return (po.created_at || '');
-      default: return '';
+  function renderActions(row: any): string {
+    if (!row.po) {
+      const availabilityUrl = row.batch_id
+        ? `/availability?batch_id=${encodeURIComponent(row.batch_id)}`
+        : '/availability';
+      return `<a href="${availabilityUrl}" class="text-sm font-medium text-emerald-400 hover:text-emerald-300">Review availability</a>`;
     }
+
+    const actions = [];
+    if (row.po.status === 'sent') {
+      actions.push(`<button class="confirm-po text-sm font-medium text-green-400 hover:text-green-300" data-po-id="${escapeHtml(row.po.id)}">Confirm on behalf</button>`);
+    }
+    actions.push(`<a href="/deliveries?po_id=${encodeURIComponent(row.po.id)}" class="text-sm font-medium text-orange-400 hover:text-orange-300">Record delivery</a>`);
+    actions.push(`<a href="/comparison?po_id=${encodeURIComponent(row.po.id)}" class="text-sm font-medium text-fuchsia-400 hover:text-fuchsia-300">Compare</a>`);
+    return actions.join('<span class="text-gray-700">·</span>');
   }
 
-  function applySortingAndPaging() {
-    const st = (window as any).__PO_STATE__;
-    const { sortKey, sortDir, page, pageSize } = st;
-    // Update header indicators based on current sort state
-    document.querySelectorAll('span.sort').forEach((el) => (el.textContent = ''));
-    const cur = document.querySelector(`span.sort[data-key="${sortKey}"]`);
-    if (cur) cur.textContent = sortDir === 'asc' ? '▲' : '▼';
-    const sorted = [...st.data].sort((a: any, b: any) => {
-      const va = getSortValue(a, sortKey); const vb = getSortValue(b, sortKey);
-      if (va < vb) return sortDir === 'asc' ? -1 : 1;
-      if (va > vb) return sortDir === 'asc' ? 1 : -1;
-      return 0;
+  function renderCompanyRow(row: any): string {
+    const po = row.po;
+    const availability = row.response_stage === 'responded'
+      ? `${Number(row.answered_items || 0)}/${Number(row.requested_items || 0)} answered`
+      : label(row.response_stage);
+    const deliveryPercent = Number(row.ordered_qty || 0) > 0
+      ? Math.min(100, (Number(row.delivered_qty || 0) / Number(row.ordered_qty || 0)) * 100)
+      : 0;
+
+    return `
+      <tr class="border-t border-gray-700/40 hover:bg-gray-800/40 transition-colors">
+        <td class="px-4 py-3 align-top">
+          <div class="font-medium text-gray-100">${escapeHtml(row.company_name || po?.company?.name || 'Unknown company')}</div>
+          <div class="text-xs text-gray-500 mt-1">${escapeHtml(availability)}</div>
+        </td>
+        <td class="px-4 py-3 align-top">
+          ${po ? `
+            <div class="flex items-center gap-2">
+              <button class="expand-po w-6 h-6 inline-flex items-center justify-center rounded-md bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300" data-po-id="${escapeHtml(po.id)}" aria-expanded="false" aria-controls="po-details-${escapeHtml(po.id)}">+</button>
+              <span class="font-mono text-gray-100">${escapeHtml(po.po_number || '—')}</span>
+            </div>
+            <div class="mt-2">${badge(po.status)}</div>
+          ` : '<span class="text-gray-500">No PO generated</span>'}
+        </td>
+        <td class="px-4 py-3 text-right align-top">
+          <div class="text-gray-100 tabular-nums">${money(row.ordered_value)}</div>
+          <div class="text-xs text-gray-500 mt-1">${Number(row.ordered_qty || 0)} units</div>
+        </td>
+        <td class="px-4 py-3 align-top min-w-[10rem]">
+          <div class="flex justify-between text-xs text-gray-400 mb-1">
+            <span>${Number(row.delivered_qty || 0)}/${Number(row.ordered_qty || 0)}</span>
+            <span>${deliveryPercent.toFixed(0)}%</span>
+          </div>
+          <div class="h-1.5 rounded-full bg-gray-700 overflow-hidden">
+            <div class="h-full bg-orange-500 rounded-full" style="width:${deliveryPercent}%"></div>
+          </div>
+          <div class="text-xs ${row.is_overdue ? 'text-red-400' : 'text-gray-500'} mt-1">
+            ${row.is_overdue ? 'Overdue · ' : ''}${date(row.delivery_date)}
+          </div>
+        </td>
+        <td class="px-4 py-3 align-top">
+          ${badge(row.lifecycle_stage, true)}
+          <div class="text-xs text-gray-400 mt-2 max-w-[14rem]">${escapeHtml(row.next_action || 'Review')}</div>
+        </td>
+        <td class="px-4 py-3 align-top">
+          <div class="flex flex-wrap items-center gap-2">${renderActions(row)}</div>
+        </td>
+      </tr>
+      ${po ? `
+        <tr id="po-details-${escapeHtml(po.id)}" class="hidden bg-gray-900/40" data-loaded="false">
+          <td colspan="6" class="px-4 py-4">
+            <div id="po-details-content-${escapeHtml(po.id)}" class="text-sm text-gray-500 animate-pulse">Loading items…</div>
+          </td>
+        </tr>
+      ` : ''}
+    `;
+  }
+
+  function renderBatch(batchGroup: any, index: number): string {
+    const batch = batchGroup.batch || {};
+    const summary = batchGroup.summary || {};
+    const rows = batchGroup.rows || [];
+    const warning = Number(summary.overdue || 0) > 0
+      ? `<span class="badge badge-danger">${summary.overdue} overdue</span>`
+      : Number(summary.awaiting_confirmation || 0) > 0
+        ? `<span class="badge badge-warning">${summary.awaiting_confirmation} awaiting confirmation</span>`
+        : Number(summary.ready_to_schedule || 0) > 0
+          ? `<span class="badge badge-brand">${summary.ready_to_schedule} ready for delivery</span>`
+          : '';
+
+    return `
+      <section class="card overflow-hidden" data-batch-id="${escapeHtml(batch.id)}">
+        <button class="batch-toggle w-full p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 text-left hover:bg-gray-800/30" aria-expanded="${index < 3 ? 'true' : 'false'}" aria-controls="batch-content-${escapeHtml(batch.id)}">
+          <div>
+            <div class="flex flex-wrap items-center gap-2">
+              <h2 class="text-base font-semibold text-gray-100">${escapeHtml(batch.name || 'Unknown batch')}</h2>
+              ${warning}
+            </div>
+            <p class="text-xs text-gray-500 mt-1">
+              ${summary.companies || 0} companies · ${summary.purchase_orders || 0} POs · ${date(batchGroup.last_activity_at)} last activity
+            </p>
+          </div>
+          <div class="flex items-center gap-4 text-sm">
+            <span class="text-gray-400">${money(summary.delivered_value)} / ${money(summary.ordered_value)} delivered</span>
+            <span class="batch-icon text-gray-400 text-lg">${index < 3 ? '−' : '+'}</span>
+          </div>
+        </button>
+        <div id="batch-content-${escapeHtml(batch.id)}" class="${index < 3 ? '' : 'hidden'} border-t border-gray-700/60">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr>
+                  <th class="table-header-cell text-left">Company / availability</th>
+                  <th class="table-header-cell text-left">Purchase order</th>
+                  <th class="table-header-cell text-right">Ordered</th>
+                  <th class="table-header-cell text-left">Delivery</th>
+                  <th class="table-header-cell text-left">Decision</th>
+                  <th class="table-header-cell text-left">Actions</th>
+                </tr>
+              </thead>
+              <tbody>${rows.map(renderCompanyRow).join('')}</tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    `;
+  }
+
+  function wireRenderedActions() {
+    document.querySelectorAll('.batch-toggle').forEach((button) => {
+      button.addEventListener('click', () => {
+        const target = document.getElementById(button.getAttribute('aria-controls') || '');
+        if (!target) return;
+        const expanded = button.getAttribute('aria-expanded') === 'true';
+        button.setAttribute('aria-expanded', String(!expanded));
+        target.classList.toggle('hidden', expanded);
+        const icon = button.querySelector('.batch-icon');
+        if (icon) icon.textContent = expanded ? '+' : '−';
+      });
     });
-    const start = (page - 1) * pageSize;
-    const pageRows = sorted.slice(start, start + pageSize);
-    renderPOTable(pageRows);
-    const total = sorted.length;
-    const pageCount = Math.max(1, Math.ceil(total / pageSize));
-    document.getElementById('poPageInfo')!.textContent = `Page ${page} of ${pageCount}`;
-    const prev = document.getElementById('poPrev') as HTMLButtonElement; const next = document.getElementById('poNext') as HTMLButtonElement;
-    if (prev) prev.disabled = page <= 1;
-    if (next) next.disabled = page >= pageCount;
-  }
 
-  function wireSortHandlers() {
-    const headers = document.querySelectorAll('th[data-sort]');
-    headers.forEach((th) => {
-      th.addEventListener('click', () => {
-        const key = th.getAttribute('data-sort') || 'created_at';
-        const st = (window as any).__PO_STATE__;
-        if (st.sortKey === key) {
-          st.sortDir = st.sortDir === 'asc' ? 'desc' : 'asc';
-        } else {
-          st.sortKey = key; st.sortDir = 'asc';
+    document.querySelectorAll('.expand-po').forEach((button) => {
+      button.addEventListener('click', async (event) => {
+        event.stopPropagation();
+        const poId = (button as HTMLElement).dataset.poId;
+        if (!poId) return;
+        const row = document.getElementById(`po-details-${poId}`);
+        if (!row) return;
+        const expanded = button.getAttribute('aria-expanded') === 'true';
+        button.setAttribute('aria-expanded', String(!expanded));
+        button.textContent = expanded ? '+' : '−';
+        row.classList.toggle('hidden', expanded);
+        if (!expanded && row.dataset.loaded !== 'true') {
+          await loadPOItems(poId);
+          row.dataset.loaded = 'true';
         }
-        st.page = 1;
-        // Update header indicators (basic)
-        document.querySelectorAll('span.sort').forEach((el) => el.textContent = '');
-        const span = document.querySelector(`span.sort[data-key="${key}"]`);
-        if (span) span.textContent = st.sortDir === 'asc' ? '▲' : '▼';
-        applySortingAndPaging();
+      });
+    });
+
+    document.querySelectorAll('.confirm-po').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const poId = (button as HTMLElement).dataset.poId;
+        if (!poId || !confirm('Confirm this purchase order on behalf of the company?')) return;
+        const resp = await fetch('/api/purchase-orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'confirm', id: poId }),
+        });
+        if (resp.ok) await loadLifecycle();
+        else alert('Failed to confirm the purchase order.');
       });
     });
   }
 
-  function wirePagingHandlers() {
-    const prev = document.getElementById('poPrev');
-    const next = document.getElementById('poNext');
-    const size = document.getElementById('poPageSize') as HTMLSelectElement | null;
-    prev?.addEventListener('click', () => { const st = (window as any).__PO_STATE__; st.page = Math.max(1, st.page - 1); applySortingAndPaging(); });
-    next?.addEventListener('click', () => { const st = (window as any).__PO_STATE__; st.page = st.page + 1; applySortingAndPaging(); });
-    size?.addEventListener('change', () => { const st = (window as any).__PO_STATE__; st.pageSize = Number(size.value || '20') || 20; st.page = 1; applySortingAndPaging(); });
-  }
-
-  // Wire once after DOM is ready
-  document.addEventListener('DOMContentLoaded', () => { wireSortHandlers(); wirePagingHandlers(); });
-
-  function renderPOTable(pos: any[]) {
-    const tbody = document.getElementById('poTableBody');
-    if (!tbody) return;
-
-    if (pos.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="10" class="py-12 text-center text-gray-400 text-sm">No purchase orders found.</td></tr>';
-      return;
-    }
-
-    tbody.innerHTML = pos.map(po => {
-      const delivery = po.delivery_date ? new Date(po.delivery_date).toLocaleDateString() : '-';
-      const batchId = po.availability_order?.batch?.id || po.availability_order?.batch_id || po.batch_id || '';
-      const availabilityLink = batchId ? `<a href="/availability?batch_id=${batchId}" class="text-sm font-medium text-purple-400 hover:text-purple-300 transition-colors">View</a>` : '-';
-      return `
-      <tr class="border-t border-gray-700/40 hover:bg-gray-800/40 transition-colors group" data-row="${po.id}">
-        <td class="px-3 py-3 align-top">
-          <button class="po-expand-btn w-6 h-6 inline-flex items-center justify-center rounded-md bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 hover:text-white text-xs transition-colors" aria-expanded="false" aria-controls="po-details-${po.id}" data-id="${po.id}">+</button>
-        </td>
-        <td class="px-4 py-3 text-white font-mono">${po.po_number || '-'}</td>
-        <td class="px-4 py-3 text-white">${po.company?.name || '-'}</td>
-        <td class="px-4 py-3 text-right text-white tabular-nums">${po.total_items}</td>
-        <td class="px-4 py-3 text-right text-white tabular-nums">$${Number(po.total_amount).toFixed(2)}</td>
-        <td class="px-4 py-3 text-white">${delivery}</td>
-        <td class="px-4 py-3">${availabilityLink}</td>
-        <td class="px-4 py-3 text-center">
-          <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded-full ring-1 ring-inset ${statusColors[po.status] || 'bg-gray-500/10 text-gray-300 ring-gray-500/30'}">${po.status.replace(/_/g, ' ')}</span>
-        </td>
-        <td class="px-4 py-3 text-gray-400 text-sm">${new Date(po.created_at).toLocaleDateString()}</td>
-        <td class="px-4 py-3 text-center space-x-3 whitespace-nowrap">
-          ${po.status === 'sent' ? `<button onclick="window.confirmPOOnBehalf('${po.id}')" class="text-sm font-medium text-green-400 hover:text-green-300 transition-colors">Confirm on behalf</button>` : ''}
-          <a href="/deliveries?po_id=${po.id}" class="text-sm font-medium text-purple-400 hover:text-purple-300 transition-colors">Record Delivery</a>
-          <a href="/comparison?po_id=${po.id}" class="text-sm font-medium text-purple-400 hover:text-purple-300 transition-colors">Compare</a>
-        </td>
-      </tr>
-      <tr id="po-details-${po.id}" class="hidden border-t border-gray-700/40 bg-gray-900/40" data-loaded="false">
-        <td></td>
-        <td class="px-4 py-4" colspan="9">
-          <div class="text-gray-400 text-sm" id="po-details-content-${po.id}"><span class="text-gray-500 text-sm animate-pulse">Loading items...</span></div>
-        </td>
-      </tr>
-    `}).join('');
-
-    // Wire expand/collapse and lazy-load items
-    const btns = tbody.querySelectorAll('.po-expand-btn');
-    btns.forEach((btn) => {
-      btn.addEventListener('click', async (e) => {
-        e.preventDefault();
-        const id = (e.currentTarget as HTMLElement).getAttribute('data-id');
-        if (!id) return;
-        const row = document.getElementById(`po-details-${id}`)!;
-        const btnEl = e.currentTarget as HTMLButtonElement;
-        const expanded = btnEl.getAttribute('aria-expanded') === 'true';
-        if (expanded) {
-          btnEl.setAttribute('aria-expanded', 'false');
-          btnEl.textContent = '+';
-          row.classList.add('hidden');
-          return;
-        }
-        btnEl.setAttribute('aria-expanded', 'true');
-        btnEl.textContent = '−';
-        row.classList.remove('hidden');
-        if (row.getAttribute('data-loaded') !== 'true') {
-          await loadPOItems(id);
-          row.setAttribute('data-loaded', 'true');
-        }
-      });
-    });
-  }
-
-  async function loadPOItems(poId) {
+  async function loadPOItems(poId: string) {
     const target = document.getElementById(`po-details-content-${poId}`);
     if (!target) return;
     try {
-      const resp = await fetch(`/api/purchase-orders?id=${poId}&items=true`);
-      if (!resp.ok) { target.textContent = 'Failed to load items.'; return; }
+      const resp = await fetch(`/api/purchase-orders?id=${encodeURIComponent(poId)}&items=true`);
+      if (!resp.ok) throw new Error('Request failed');
       const { data } = await resp.json();
       const items = Array.isArray(data) ? data : [];
-      const renderRow = (it) => `
-        <tr class="border-t border-gray-700/40 hover:bg-gray-800/40 transition-colors">
-          <td class="px-3 py-2 text-gray-100">${it.product?.title || it.product?.barcode || '-'}</td>
-          <td class="px-3 py-2 text-right text-gray-200 tabular-nums">${it.quantity}</td>
-          <td class="px-3 py-2 text-right text-gray-200 tabular-nums">${Number(it.boxes || 0).toFixed(2)}</td>
-          <td class="px-3 py-2 text-right text-gray-200 tabular-nums">$${Number(it.price_per_box || 0).toFixed(2)}</td>
-          <td class="px-3 py-2 text-right text-gray-200 tabular-nums">$${Number(it.total_price || 0).toFixed(2)}</td>
-          <td class="px-3 py-2 text-center text-gray-300 tabular-nums">${(it.delivered_qty || 0)}/${it.quantity}</td>
-          <td class="px-3 py-2 text-gray-300">${it.delivery_notes ? String(it.delivery_notes) : '-'}</td>
-        </tr>
-      `;
-      target.innerHTML = items.length === 0 ? '<div class="text-sm text-gray-500">No items in this purchase order.</div>' : `
-        <div class="overflow-x-auto rounded-lg border border-gray-700/40 bg-gray-800/40">
-          <table class="w-full text-xs">
-            <thead>
-              <tr>
-                <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Product</th>
-                <th class="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Qty</th>
-                <th class="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Boxes</th>
-                <th class="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Price/Box</th>
-                <th class="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Total</th>
-                <th class="px-3 py-2 text-center text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Delivered</th>
-                <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Notes</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${items.map(renderRow).join('')}
-            </tbody>
-          </table>
-        </div>
-      `;
-    } catch (e) {
-      target.textContent = 'Error loading items.';
+      target.classList.remove('animate-pulse');
+      target.innerHTML = items.length === 0
+        ? '<div class="text-gray-500">No items in this purchase order.</div>'
+        : `
+          <div class="overflow-x-auto rounded-lg border border-gray-700/40">
+            <table class="w-full text-xs">
+              <thead>
+                <tr>
+                  <th class="table-header-cell text-left">Product</th>
+                  <th class="table-header-cell text-right">Qty</th>
+                  <th class="table-header-cell text-right">Boxes</th>
+                  <th class="table-header-cell text-right">Price/box</th>
+                  <th class="table-header-cell text-right">Total</th>
+                  <th class="table-header-cell text-center">Delivered</th>
+                  <th class="table-header-cell text-left">Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${items.map((item: any) => `
+                  <tr class="border-t border-gray-700/40">
+                    <td class="px-3 py-2 text-gray-100">${escapeHtml(item.product?.title || item.product?.barcode || '—')}</td>
+                    <td class="px-3 py-2 text-right text-gray-200 tabular-nums">${Number(item.quantity || 0)}</td>
+                    <td class="px-3 py-2 text-right text-gray-200 tabular-nums">${Number(item.boxes || 0).toFixed(2)}</td>
+                    <td class="px-3 py-2 text-right text-gray-200 tabular-nums">${money(item.price_per_box)}</td>
+                    <td class="px-3 py-2 text-right text-gray-200 tabular-nums">${money(item.total_price)}</td>
+                    <td class="px-3 py-2 text-center text-gray-300 tabular-nums">${Number(item.delivered_qty || 0)}/${Number(item.quantity || 0)}</td>
+                    <td class="px-3 py-2 text-gray-300">${escapeHtml(item.delivery_notes || '—')}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+    } catch {
+      target.classList.remove('animate-pulse');
+      target.textContent = 'Failed to load items.';
     }
   }
 
-  (window as any).confirmPOOnBehalf = async (id: string) => {
-    if (!confirm('Confirm this purchase order on behalf of the company?')) return;
-    const resp = await fetch('/api/purchase-orders', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'confirm', id }),
-    });
-    if (resp.ok) {
-      loadPOs();
-    } else {
-      alert('Failed to confirm.');
-    }
-  };
+  async function loadLifecycle() {
+    const container = document.getElementById('purchaseOrderBatches')!;
+    container.innerHTML = '<div class="card p-10 text-center text-gray-500 animate-pulse">Loading purchase-order lifecycle…</div>';
 
-  document.getElementById('companyFilter')?.addEventListener('change', loadPOs);
-  document.getElementById('statusFilter')?.addEventListener('change', loadPOs);
+    const params = new URLSearchParams({ view: 'lifecycle' });
+    const company = (document.getElementById('companyFilter') as HTMLSelectElement)?.value;
+    const status = (document.getElementById('statusFilter') as HTMLSelectElement)?.value;
+    if (company) params.set('company_id', company);
+    if (status) params.set('status', status);
+
+    try {
+      const resp = await fetch(`/api/purchase-orders?${params}`);
+      const json = await resp.json();
+      if (!resp.ok) throw new Error(json.error || 'Request failed');
+      renderSummary(json.summary);
+      const batches = Array.isArray(json.batches) ? json.batches : [];
+      container.innerHTML = batches.length
+        ? batches.map(renderBatch).join('')
+        : '<div class="card p-10 text-center text-gray-400">No company lifecycle rows match these filters.</div>';
+      wireRenderedActions();
+    } catch (error) {
+      container.innerHTML = `<div class="card p-10 text-center text-red-400">${escapeHtml(error instanceof Error ? error.message : 'Failed to load purchase orders.')}</div>`;
+    }
+  }
+
+  document.getElementById('companyFilter')?.addEventListener('change', loadLifecycle);
+  document.getElementById('statusFilter')?.addEventListener('change', loadLifecycle);
+  document.getElementById('refreshButton')?.addEventListener('click', loadLifecycle);
 
   loadCompanies();
-  loadPOs();
+  loadLifecycle();
 </script>
