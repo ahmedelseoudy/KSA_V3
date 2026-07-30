@@ -18,7 +18,7 @@ if (profile?.role === 'company') {
     <PageHeader title="Dashboard" subtitle={`Welcome back, ${user?.email}`} />
 
     <!-- Quick Stats -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8" id="statsGrid">
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8" id="statsGrid">
       <StatCard label="Order Batches" valueId="statBatches" valueClass="text-white" />
       <StatCard label="Companies" valueId="statCompanies" valueClass="text-blue-400" />
       <StatCard label="Products" valueId="statProducts" valueClass="text-purple-400" />

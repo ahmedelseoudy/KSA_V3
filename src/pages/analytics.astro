@@ -49,7 +49,7 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
 
     <div id="analyticsError" class="hidden mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300"></div>
 
-    <div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 mb-6">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 mb-6">
       <StatCard label="Ordered value" valueId="orderedValue" valueClass="text-green-400" />
       <StatCard label="Delivered value" valueId="deliveredValue" valueClass="text-blue-400" />
       <StatCard label="Response completion" valueId="responseRate" valueClass="text-emerald-400" />
@@ -171,6 +171,7 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
 
 <script>
   import { Chart, registerables } from 'chart.js';
+  import { formatCurrency } from '../utils/currency';
   Chart.register(...registerables);
 
   let page = 1;
@@ -194,11 +195,7 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
   }
 
   function money(value: unknown): string {
-    return new Intl.NumberFormat(undefined, {
-      style: 'currency',
-      currency: 'USD',
-      maximumFractionDigits: 0,
-    }).format(numeric(value));
+    return formatCurrency(value);
   }
 
   function percent(value: unknown): string {
@@ -384,10 +381,24 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { labels: { color: '#94a3b8' } } },
+        plugins: {
+          legend: { labels: { color: '#94a3b8' } },
+          tooltip: {
+            callbacks: {
+              label: (context) => `${context.dataset.label || 'Value'}: ${formatCurrency(context.parsed.y)}`,
+            },
+          },
+        },
         scales: {
           x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
-          y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' }, beginAtZero: true },
+          y: {
+            ticks: {
+              color: '#94a3b8',
+              callback: (value) => formatCurrency(value, 0),
+            },
+            grid: { color: '#334155' },
+            beginAtZero: true,
+          },
         },
       },
     });

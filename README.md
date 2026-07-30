@@ -28,6 +28,8 @@ A database-backed supplier CRM that replaces the old Excel/ZIP workflow. Built w
 | UI | [React 18](https://react.dev) islands + [Tailwind CSS 3](https://tailwindcss.com) |
 | Database / Auth | [Supabase](https://supabase.com) (Postgres + Row Level Security) |
 | Email | [Resend](https://resend.com) via Supabase Edge Functions |
+
+All monetary values are stored and displayed as Saudi riyals (`SAR`) using `en-SA` formatting. Currency labels are presentation-only; the application does not perform exchange-rate conversion.
 | Charting | [Chart.js 4](https://www.chartjs.org) |
 | Excel I/O | [xlsx](https://sheetjs.com) + [xlsx-js-style](https://github.com/gitbrent/xlsx-js-style) |
 | Deployment | [Render.com](https://render.com) (Web Service, Node 20) |

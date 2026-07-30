@@ -42,7 +42,7 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
       </div>
     </div>
 
-    <div class="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-6">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 mb-6">
       <StatCard label="Purchase orders" valueId="totalPOs" />
       <StatCard label="Ordered value" valueId="orderedValue" valueClass="text-green-400" />
       <StatCard label="Awaiting confirmation" valueId="awaitingConfirmation" valueClass="text-yellow-400" />
@@ -58,6 +58,8 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
 </Layout>
 
 <script>
+  import { formatCurrency } from '../utils/currency';
+
   const statusClasses: Record<string, string> = {
     draft: 'badge-pending',
     sent: 'badge-info',
@@ -92,11 +94,7 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
   }
 
   function money(value: unknown): string {
-    return new Intl.NumberFormat(undefined, {
-      style: 'currency',
-      currency: 'USD',
-      maximumFractionDigits: 0,
-    }).format(Number(value || 0));
+    return formatCurrency(value);
   }
 
   function date(value: unknown): string {

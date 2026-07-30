@@ -50,7 +50,7 @@ const isAdmin = ['admin', 'super_admin'].includes(profile.role);
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
           <StatCard label="Total POs" valueId="kpiTotalPOs" />
           <StatCard label="Requested Qty" valueId="kpiRequested" />
           <StatCard label="Available Qty" valueId="kpiAvailable" />
@@ -93,7 +93,7 @@ const isAdmin = ['admin', 'super_admin'].includes(profile.role);
                     <th class="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Ordered</th>
                     <th class="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Delivered</th>
                     <th class="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Delivery %</th>
-                    <th class="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Amount</th>
+                    <th class="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Amount (SAR)</th>
                   </tr>
                 </thead>
                 <tbody id="ordersBody"><tr><td colspan="7" class="px-4 py-8 text-center text-gray-500 text-sm animate-pulse">Loading…</td></tr></tbody>
@@ -141,6 +141,8 @@ const isAdmin = ['admin', 'super_admin'].includes(profile.role);
 </Layout>
 
 <script>
+  import { formatCurrency } from '../utils/currency';
+
   function fmt(n) { try { return Number(n || 0).toLocaleString(); } catch { return String(n || 0); } }
   function pct(a, b) { const x = Number(a || 0), y = Number(b || 0); return y > 0 ? ((x / y) * 100) : 0; }
   function toISODate(d) { if (!d) return ''; const x = new Date(d); if (isNaN(x.getTime())) return ''; return x.toISOString().slice(0,10); }
@@ -329,7 +331,7 @@ const isAdmin = ['admin', 'super_admin'].includes(profile.role);
             <td class="px-3 py-3 text-right text-gray-200 tabular-nums">${fmt(o)}</td>
             <td class="px-3 py-3 text-right text-gray-200 tabular-nums">${fmt(d)}</td>
             <td class="px-3 py-3 text-right tabular-nums ${d/o>=0.8?'text-green-400':'text-yellow-400'}">${pctD}</td>
-            <td class="px-3 py-3 text-right text-gray-200 tabular-nums">${fmt(Math.round(amt))}</td>
+            <td class="px-3 py-3 text-right text-gray-200 tabular-nums">${formatCurrency(amt)}</td>
           </tr>`;
         }).join('');
         ordersBody.innerHTML = rowsHtml || '<tr><td colspan="7" class="py-12 text-center text-gray-400 text-sm">No data</td></tr>';

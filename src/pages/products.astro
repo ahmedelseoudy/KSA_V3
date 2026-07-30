@@ -43,10 +43,10 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
     </div>
 
     <!-- Stats -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6" id="statsContainer">
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6" id="statsContainer">
       <StatCard label="Total Products" valueId="totalProducts" valueClass="text-white" />
       <StatCard label="Companies" valueId="totalCompanies" valueClass="text-white" />
-      <StatCard label="Avg Price/Box" valueId="avgPrice" valueClass="text-white" />
+      <StatCard label="Avg Price/Box (SAR)" valueId="avgPrice" valueClass="text-white" />
       <StatCard label="Last Upload" valueId="lastUpload" valueClass="text-white" />
     </div>
 
@@ -61,7 +61,7 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
               <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Title</th>
               <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Company</th>
               <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Box Qty</th>
-              <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Price/Box</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Price/Box (SAR)</th>
               <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Actions</th>
             </tr>
           </thead>
@@ -143,7 +143,7 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
               <input type="number" name="box_quantity" required min="1" value="1" class="w-full px-3 py-2 bg-gray-800/70 border border-gray-700 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
             </div>
             <div>
-              <label class="block text-sm text-gray-400 mb-1">Price per Box *</label>
+              <label class="block text-sm text-gray-400 mb-1">Price per Box (SAR) *</label>
               <input type="number" name="price_per_box" required min="0" step="0.01" value="0" class="w-full px-3 py-2 bg-gray-800/70 border border-gray-700 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
             </div>
           </div>
@@ -163,6 +163,7 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
 
 <script>
   import * as XLSX from 'xlsx';
+  import { formatCurrency, parseCurrencyInput } from '../utils/currency';
 
   let currentPage = 0;
   const pageSize = 50;
@@ -220,7 +221,7 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
         <td class="px-4 py-3 text-white truncate max-w-xs">${p.title || '-'}</td>
         <td class="px-4 py-3 text-gray-300">${p.company?.name || '-'}</td>
         <td class="px-4 py-3 text-right text-white tabular-nums">${p.box_quantity}</td>
-        <td class="px-4 py-3 text-right text-white tabular-nums">$${Number(p.price_per_box).toFixed(2)}</td>
+        <td class="px-4 py-3 text-right text-white tabular-nums">${formatCurrency(p.price_per_box)}</td>
         <td class="px-4 py-3 text-center">
           <button onclick="window.deleteProduct('${p.id}')" class="inline-flex items-center justify-center px-2.5 py-1.5 text-xs font-medium rounded-lg text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 transition-colors">Delete</button>
         </td>
@@ -296,7 +297,7 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
         const barcode = String(row['barcode'] || row['Barcode'] || row['EAN'] || row['ean'] || row['product_code'] || '').trim();
         const company = String(row['company'] || row['Company'] || row['supplier'] || row['Supplier'] || row['manufacturer'] || '').trim();
         const boxQty = parseInt(row['boxes'] || row['Boxes'] || row['box_quantity'] || row['units'] || row['pack_size'] || '1');
-        const price = parseFloat(row['price'] || row['Price'] || row['price_per_box'] || row['cost'] || row['unit_price'] || '0');
+        const price = parseCurrencyInput(row['price'] || row['Price'] || row['price_per_box'] || row['cost'] || row['unit_price'] || '0');
         const asin = String(row['asin'] || row['ASIN'] || '').trim();
         const title = String(row['title'] || row['Title'] || row['name'] || row['Name'] || row['description'] || '').trim();
         const category = String(row['category'] || row['Category'] || '').trim();

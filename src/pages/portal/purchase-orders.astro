@@ -21,6 +21,8 @@ if (!profile || profile.role !== 'company') {
 </Layout>
 
 <script>
+  import { formatCurrency } from '../../utils/currency';
+
   async function loadPOs() {
     const resp = await fetch('/api/purchase-orders');
     if (!resp.ok) return;
@@ -52,7 +54,7 @@ if (!profile || profile.role !== 'company') {
         <div class="flex flex-wrap justify-between items-start gap-3 mb-3">
           <div class="min-w-0">
             <h3 class="text-lg font-semibold text-white">PO: ${po.po_number || 'N/A'}</h3>
-            <p class="text-sm text-gray-400 mt-0.5 tabular-nums">${po.total_items} items · $${Number(po.total_amount || 0).toFixed(2)}</p>
+            <p class="text-sm text-gray-400 mt-0.5 tabular-nums">${po.total_items} items · ${formatCurrency(po.total_amount)}</p>
             <p class="text-xs text-gray-500 mt-1">Created: ${new Date(po.created_at).toLocaleDateString()}${delivery ? ` · Delivery by: <span class=\"text-gray-300\">${delivery}</span>` : ''}${availabilityLink ? ` ${availabilityLink}` : ''}</p>
           </div>
           <div class="flex items-center gap-3 flex-wrap">
@@ -126,8 +128,8 @@ if (!profile || profile.role !== 'company') {
                 <td class="px-4 py-3 text-white">${item.product?.title || item.product?.barcode || '-'}</td>
                 <td class="px-4 py-3 text-right text-white tabular-nums">${item.quantity}</td>
                 <td class="px-4 py-3 text-right text-white tabular-nums">${Number(item.boxes).toFixed(1)}</td>
-                <td class="px-4 py-3 text-right text-white tabular-nums">$${Number(item.price_per_box).toFixed(2)}</td>
-                <td class="px-4 py-3 text-right text-white tabular-nums">$${Number(item.total_price).toFixed(2)}</td>
+                <td class="px-4 py-3 text-right text-white tabular-nums">${formatCurrency(item.price_per_box)}</td>
+                <td class="px-4 py-3 text-right text-white tabular-nums">${formatCurrency(item.total_price)}</td>
                 <td class="px-4 py-3 text-center">
                   <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded-full tabular-nums ${
                     item.delivery_status === 'delivered' ? 'bg-green-500/10 text-green-300 ring-1 ring-inset ring-green-500/30' :

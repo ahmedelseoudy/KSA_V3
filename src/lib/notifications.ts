@@ -8,6 +8,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { sendEmail, PUBLIC_APP_URL } from './email';
 import { availabilityRequestEmail, purchaseOrderEmail, deliveryUpdateEmail } from './email-templates';
+import { formatCurrency } from '../utils/currency';
 
 interface CompanyContact {
   id: string;
@@ -164,7 +165,7 @@ export async function sendPurchaseOrderEmail(
   }
 
   const portalUrl = `${PUBLIC_APP_URL}/portal/purchase-orders?focus=${opts.purchase_order_id}`;
-  const totalFormatted = `$${opts.total_amount.toFixed(2)}`;
+  const totalFormatted = formatCurrency(opts.total_amount);
   const { subject, html } = purchaseOrderEmail({
     company_name: company.name,
     po_number: opts.po_number,

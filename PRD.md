@@ -258,7 +258,7 @@ Must cover before MVP is "done":
 | 2 | Sending domain | TBD — start with Resend `onboarding@resend.dev` for tests, switch to real domain before launch | open |
 | 3 | Company onboarding | **Admin-only invites** (no self-register) | 2026-05-26 |
 | 4 | Unavailable report layout | **Two sheets**: per-item summary + per-company tabs | 2026-05-26 |
-| 5 | Locale / currency | TBD — defaulting to USD + en-US until told otherwise | open |
+| 5 | Locale / currency | Saudi riyal (`SAR`) with `en-SA` formatting; stored numeric values already represent SAR | decided 2026-07-30 |
 
 ---
 

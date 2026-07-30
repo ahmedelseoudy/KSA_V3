@@ -15,7 +15,7 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
   <div class="max-w-7xl mx-auto">
     <PageHeader title="Availability Overview" subtitle="Track each batch, collect supplier responses, and generate purchase orders" />
 
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
       <StatCard label="Total Requests" valueId="totalRequests" />
       <StatCard label="Fully Responded" valueId="fullResponded" valueClass="text-green-400" />
       <StatCard label="Pending" valueId="pending" valueClass="text-yellow-400" />
@@ -55,6 +55,7 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
 
 <script>
   import * as XLSX from 'xlsx';
+  import { formatCurrency } from '../utils/currency';
 
   type SectionState = {
     expanded: boolean;
@@ -666,7 +667,7 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
             <td class="px-3 py-2 text-gray-300">${escapeHtml(orderItem.asin || '—')}</td>
             <td class="px-3 py-2 text-right text-gray-200">${Number(orderItem.order_qty || 0)}</td>
             <td class="px-3 py-2 text-right text-gray-200">${Number(orderItem.boxes || 0)}</td>
-            <td class="px-3 py-2 text-right text-gray-200">${Number(orderItem.provider_cost || 0).toFixed(2)}</td>
+            <td class="px-3 py-2 text-right text-gray-200">${formatCurrency(orderItem.provider_cost)}</td>
             <td class="px-3 py-2 text-gray-300">${escapeHtml(item.comment || '—')}</td>
             <td class="px-3 py-2 text-xs text-gray-400">${byLabel(item)}</td>
           </tr>
@@ -680,7 +681,7 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
             <div class="overflow-x-auto rounded-lg border border-gray-700/40">
               <table class="w-full text-xs">
                 <thead><tr>
-                  ${['Barcode', 'Title', 'ASIN', 'Order qty', 'Boxes', 'Provider cost', 'Comment', 'By'].map((label, index) =>
+                  ${['Barcode', 'Title', 'ASIN', 'Order qty', 'Boxes', 'Provider cost (SAR)', 'Comment', 'By'].map((label, index) =>
                     `<th class="px-3 py-2 ${index >= 3 && index <= 5 ? 'text-right' : 'text-left'} text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">${label}</th>`
                   ).join('')}
                 </tr></thead>
