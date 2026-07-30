@@ -23,6 +23,7 @@ export const GET: APIRoute = async ({ request, cookies }) => {
   const po_id = url.searchParams.get('id') || '';
   const status = url.searchParams.get('status') || '';
   const view = url.searchParams.get('view') || '';
+  const summaryOnly = url.searchParams.get('summary_only') === 'true';
 
   // If requesting items for a specific PO
   if (po_id && url.searchParams.get('items') === 'true') {
@@ -70,9 +71,27 @@ export const GET: APIRoute = async ({ request, cookies }) => {
       return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
     }
 
+    const lifecycleSelect = summaryOnly
+      ? [
+          'batch_id',
+          'company_id',
+          'purchase_order_id',
+          'purchase_order_status',
+          'ordered_qty',
+          'delivered_qty',
+          'ordered_value',
+          'delivered_value',
+          'awaiting_confirmation',
+          'ready_to_schedule',
+          'is_overdue',
+          'lifecycle_stage',
+          'last_activity_at',
+        ].join(',')
+      : '*';
+
     let lifecycleQuery = supabase
       .from('v_batch_company_lifecycle')
-      .select('*')
+      .select(lifecycleSelect)
       .order('last_activity_at', { ascending: false });
 
     if (batch_id) lifecycleQuery = lifecycleQuery.eq('batch_id', batch_id);
@@ -84,11 +103,13 @@ export const GET: APIRoute = async ({ request, cookies }) => {
       return new Response(JSON.stringify({ error: lifecycleError.message }), { status: 500 });
     }
 
-    const rows = (lifecycleData || []) as CompanyLifecycleRow[];
+    const rows = (lifecycleData || []) as unknown as CompanyLifecycleRow[];
     const batchIds = [...new Set(rows.map((row) => row.batch_id).filter(Boolean))];
-    const purchaseOrderIds = [
-      ...new Set(rows.map((row) => row.purchase_order_id).filter(Boolean)),
-    ] as string[];
+    const purchaseOrderIds = summaryOnly
+      ? []
+      : [
+          ...new Set(rows.map((row) => row.purchase_order_id).filter(Boolean)),
+        ] as string[];
 
     const [batchResult, purchaseOrderResult] = await Promise.all([
       batchIds.length > 0
@@ -118,15 +139,17 @@ export const GET: APIRoute = async ({ request, cookies }) => {
     const purchaseOrdersById = new Map(
       (purchaseOrderResult.data || []).map((po: any) => [po.id, po])
     );
-    const enrichedRows = rows.map((row) => ({
-      ...row,
-      batch: batchesById.get(row.batch_id) || null,
-      // Compatibility shim: when a lifecycle row has a PO, this is the exact
-      // legacy PO shape returned by the default endpoint.
-      po: row.purchase_order_id
-        ? purchaseOrdersById.get(row.purchase_order_id) || null
-        : null,
-    }));
+    const enrichedRows = rows.map((row) => summaryOnly
+      ? row
+      : {
+          ...row,
+          batch: batchesById.get(row.batch_id) || null,
+          // Compatibility shim: when a lifecycle row has a PO, this is the exact
+          // legacy PO shape returned by the default endpoint.
+          po: row.purchase_order_id
+            ? purchaseOrdersById.get(row.purchase_order_id) || null
+            : null,
+        });
 
     const grouped = new Map<string, typeof enrichedRows>();
     for (const row of enrichedRows) {
@@ -137,7 +160,7 @@ export const GET: APIRoute = async ({ request, cookies }) => {
 
     const batches = Array.from(grouped, ([id, batchRows]) => ({
       batch: batchesById.get(id) || { id, name: 'Unknown batch' },
-      rows: batchRows,
+      ...(summaryOnly ? {} : { rows: batchRows }),
       summary: summarizeCompanyLifecycle(batchRows),
       last_activity_at: batchRows.reduce<string | null>((latest, row: any) => {
         if (!row.last_activity_at) return latest;
@@ -150,7 +173,7 @@ export const GET: APIRoute = async ({ request, cookies }) => {
     );
 
     return new Response(JSON.stringify({
-      data: enrichedRows,
+      data: summaryOnly ? [] : enrichedRows,
       count: enrichedRows.length,
       summary: summarizeCompanyLifecycle(enrichedRows),
       batches,

@@ -210,10 +210,9 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
     `;
   }
 
-  function renderBatch(batchGroup: any, index: number): string {
+  function renderBatch(batchGroup: any): string {
     const batch = batchGroup.batch || {};
     const summary = batchGroup.summary || {};
-    const rows = batchGroup.rows || [];
     const warning = Number(summary.overdue || 0) > 0
       ? `<span class="badge badge-danger">${summary.overdue} overdue</span>`
       : Number(summary.awaiting_confirmation || 0) > 0
@@ -224,56 +223,95 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
 
     return `
       <section class="card overflow-hidden" data-batch-id="${escapeHtml(batch.id)}">
-        <button class="batch-toggle w-full p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 text-left hover:bg-gray-800/30" aria-expanded="${index < 3 ? 'true' : 'false'}" aria-controls="batch-content-${escapeHtml(batch.id)}">
-          <div>
-            <div class="flex flex-wrap items-center gap-2">
-              <h2 class="text-base font-semibold text-gray-100">${escapeHtml(batch.name || 'Unknown batch')}</h2>
-              ${warning}
+        <button class="batch-toggle w-full p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 text-left hover:bg-gray-800/30" data-batch-id="${escapeHtml(batch.id)}" aria-expanded="false" aria-controls="batch-content-${escapeHtml(batch.id)}">
+          <div class="flex items-start gap-3">
+            <span class="batch-chevron mt-0.5 text-gray-400" aria-hidden="true">▸</span>
+            <div>
+              <div class="flex flex-wrap items-center gap-2">
+                <h2 class="text-base font-semibold text-gray-100">${escapeHtml(batch.name || 'Unknown batch')}</h2>
+                ${warning}
+              </div>
+              <p class="text-xs text-gray-500 mt-1">
+                ${summary.companies || 0} companies · ${summary.purchase_orders || 0} POs · ${date(batchGroup.last_activity_at)} last activity
+              </p>
             </div>
-            <p class="text-xs text-gray-500 mt-1">
-              ${summary.companies || 0} companies · ${summary.purchase_orders || 0} POs · ${date(batchGroup.last_activity_at)} last activity
-            </p>
           </div>
-          <div class="flex items-center gap-4 text-sm">
-            <span class="text-gray-400">${money(summary.delivered_value)} / ${money(summary.ordered_value)} delivered</span>
-            <span class="batch-icon text-gray-400 text-lg">${index < 3 ? '−' : '+'}</span>
-          </div>
+          <span class="text-sm text-gray-400">${money(summary.delivered_value)} / ${money(summary.ordered_value)} delivered</span>
         </button>
-        <div id="batch-content-${escapeHtml(batch.id)}" class="${index < 3 ? '' : 'hidden'} border-t border-gray-700/60">
-          <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead>
-                <tr>
-                  <th class="table-header-cell text-left">Company / availability</th>
-                  <th class="table-header-cell text-left">Purchase order</th>
-                  <th class="table-header-cell text-right">Ordered</th>
-                  <th class="table-header-cell text-left">Delivery</th>
-                  <th class="table-header-cell text-left">Decision</th>
-                  <th class="table-header-cell text-left">Actions</th>
-                </tr>
-              </thead>
-              <tbody>${rows.map(renderCompanyRow).join('')}</tbody>
-            </table>
-          </div>
+        <div id="batch-content-${escapeHtml(batch.id)}" class="hidden border-t border-gray-700/60" data-loaded="false">
+          <div class="p-8 text-center text-sm text-gray-500 animate-pulse">Loading companies…</div>
         </div>
       </section>
     `;
   }
 
-  function wireRenderedActions() {
-    document.querySelectorAll('.batch-toggle').forEach((button) => {
-      button.addEventListener('click', () => {
+  function renderBatchBody(rows: any[]): string {
+    return `
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr>
+              <th class="table-header-cell text-left">Company / availability</th>
+              <th class="table-header-cell text-left">Purchase order</th>
+              <th class="table-header-cell text-right">Ordered</th>
+              <th class="table-header-cell text-left">Delivery</th>
+              <th class="table-header-cell text-left">Decision</th>
+              <th class="table-header-cell text-left">Actions</th>
+            </tr>
+          </thead>
+          <tbody>${rows.map(renderCompanyRow).join('')}</tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  function lifecycleParams(summaryOnly = false): URLSearchParams {
+    const params = new URLSearchParams({ view: 'lifecycle' });
+    if (summaryOnly) params.set('summary_only', 'true');
+    const company = (document.getElementById('companyFilter') as HTMLSelectElement)?.value;
+    const status = (document.getElementById('statusFilter') as HTMLSelectElement)?.value;
+    if (company) params.set('company_id', company);
+    if (status) params.set('status', status);
+    return params;
+  }
+
+  async function loadBatch(batchId: string, target: HTMLElement) {
+    try {
+      const params = lifecycleParams();
+      params.set('batch_id', batchId);
+      const resp = await fetch(`/api/purchase-orders?${params}`);
+      const json = await resp.json();
+      if (!resp.ok) throw new Error(json.error || 'Request failed');
+      const rows = Array.isArray(json.batches?.[0]?.rows) ? json.batches[0].rows : [];
+      target.innerHTML = rows.length
+        ? renderBatchBody(rows)
+        : '<div class="p-8 text-center text-sm text-gray-500">No companies match these filters.</div>';
+      target.dataset.loaded = 'true';
+      wireRowActions(target);
+    } catch (error) {
+      target.innerHTML = `<div class="p-8 text-center text-sm text-red-400">${escapeHtml(error instanceof Error ? error.message : 'Failed to load this batch.')}</div>`;
+    }
+  }
+
+  function wireBatchToggles() {
+    document.querySelectorAll<HTMLButtonElement>('.batch-toggle').forEach((button) => {
+      button.addEventListener('click', async () => {
         const target = document.getElementById(button.getAttribute('aria-controls') || '');
         if (!target) return;
         const expanded = button.getAttribute('aria-expanded') === 'true';
         button.setAttribute('aria-expanded', String(!expanded));
         target.classList.toggle('hidden', expanded);
-        const icon = button.querySelector('.batch-icon');
-        if (icon) icon.textContent = expanded ? '+' : '−';
+        const chevron = button.querySelector('.batch-chevron');
+        if (chevron) chevron.textContent = expanded ? '▸' : '▾';
+        if (!expanded && target.dataset.loaded !== 'true') {
+          await loadBatch(button.dataset.batchId || '', target);
+        }
       });
     });
+  }
 
-    document.querySelectorAll('.expand-po').forEach((button) => {
+  function wireRowActions(scope: ParentNode) {
+    scope.querySelectorAll('.expand-po').forEach((button) => {
       button.addEventListener('click', async (event) => {
         event.stopPropagation();
         const poId = (button as HTMLElement).dataset.poId;
@@ -291,7 +329,7 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
       });
     });
 
-    document.querySelectorAll('.confirm-po').forEach((button) => {
+    scope.querySelectorAll('.confirm-po').forEach((button) => {
       button.addEventListener('click', async () => {
         const poId = (button as HTMLElement).dataset.poId;
         if (!poId || !confirm('Confirm this purchase order on behalf of the company?')) return;
@@ -357,13 +395,8 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
     const container = document.getElementById('purchaseOrderBatches')!;
     container.innerHTML = '<div class="card p-10 text-center text-gray-500 animate-pulse">Loading purchase-order lifecycle…</div>';
 
-    const params = new URLSearchParams({ view: 'lifecycle' });
-    const company = (document.getElementById('companyFilter') as HTMLSelectElement)?.value;
-    const status = (document.getElementById('statusFilter') as HTMLSelectElement)?.value;
-    if (company) params.set('company_id', company);
-    if (status) params.set('status', status);
-
     try {
+      const params = lifecycleParams(true);
       const resp = await fetch(`/api/purchase-orders?${params}`);
       const json = await resp.json();
       if (!resp.ok) throw new Error(json.error || 'Request failed');
@@ -372,7 +405,7 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
       container.innerHTML = batches.length
         ? batches.map(renderBatch).join('')
         : '<div class="card p-10 text-center text-gray-400">No company lifecycle rows match these filters.</div>';
-      wireRenderedActions();
+      wireBatchToggles();
     } catch (error) {
       container.innerHTML = `<div class="card p-10 text-center text-red-400">${escapeHtml(error instanceof Error ? error.message : 'Failed to load purchase orders.')}</div>`;
     }

@@ -159,45 +159,46 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
     `;
   }
 
-  function renderBatch(group: any, index: number): string {
-    const rows = (group.rows || []).filter((row: any) => row.po && row.po.status !== 'cancelled');
-    if (rows.length === 0) return '';
-    const orderedValue = rows.reduce((sum: number, row: any) => sum + Number(row.ordered_value || 0), 0);
-    const deliveredValue = rows.reduce((sum: number, row: any) => sum + Number(row.delivered_value || 0), 0);
-    const overdue = rows.filter((row: any) => row.is_overdue).length;
-    const expanded = index < 3;
+  function renderBatch(group: any): string {
+    const summary = group.summary || {};
     return `
-      <section class="card overflow-hidden">
-        <button class="batch-toggle w-full p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 text-left hover:bg-gray-800/30" aria-expanded="${expanded}" aria-controls="delivery-batch-${escapeHtml(group.batch.id)}">
-          <div>
-            <div class="flex flex-wrap items-center gap-2">
-              <h2 class="text-base font-semibold text-gray-100">${escapeHtml(group.batch.name || 'Unknown batch')}</h2>
-              ${overdue ? `<span class="badge badge-danger">${overdue} overdue</span>` : ''}
+      <section class="card overflow-hidden" data-batch-id="${escapeHtml(group.batch.id)}">
+        <button class="batch-toggle w-full p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 text-left hover:bg-gray-800/30" data-batch-id="${escapeHtml(group.batch.id)}" aria-expanded="false" aria-controls="delivery-batch-${escapeHtml(group.batch.id)}">
+          <div class="flex items-start gap-3">
+            <span class="batch-chevron mt-0.5 text-gray-400" aria-hidden="true">▸</span>
+            <div>
+              <div class="flex flex-wrap items-center gap-2">
+                <h2 class="text-base font-semibold text-gray-100">${escapeHtml(group.batch.name || 'Unknown batch')}</h2>
+                ${Number(summary.overdue || 0) > 0 ? `<span class="badge badge-danger">${summary.overdue} overdue</span>` : ''}
+              </div>
+              <p class="text-xs text-gray-500 mt-1">${summary.purchase_orders || 0} purchase orders</p>
             </div>
-            <p class="text-xs text-gray-500 mt-1">${rows.length} purchase orders</p>
           </div>
-          <div class="flex items-center gap-4 text-sm">
-            <span class="text-gray-400">${money(deliveredValue)} / ${money(orderedValue)} delivered</span>
-            <span class="batch-icon text-gray-400 text-lg">${expanded ? '−' : '+'}</span>
-          </div>
+          <span class="text-sm text-gray-400">${money(summary.delivered_value)} / ${money(summary.ordered_value)} delivered</span>
         </button>
-        <div id="delivery-batch-${escapeHtml(group.batch.id)}" class="${expanded ? '' : 'hidden'} border-t border-gray-700/60">
-          <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead>
-                <tr>
-                  <th class="table-header-cell text-left">Company</th>
-                  <th class="table-header-cell text-left">Purchase order</th>
-                  <th class="table-header-cell text-right">Ordered</th>
-                  <th class="table-header-cell text-left">Fulfillment</th>
-                  <th class="table-header-cell text-left">Action</th>
-                </tr>
-              </thead>
-              <tbody>${rows.map(renderPORow).join('')}</tbody>
-            </table>
-          </div>
+        <div id="delivery-batch-${escapeHtml(group.batch.id)}" class="hidden border-t border-gray-700/60" data-loaded="false">
+          <div class="p-8 text-center text-sm text-gray-500 animate-pulse">Loading purchase orders…</div>
         </div>
       </section>
+    `;
+  }
+
+  function renderBatchBody(rows: any[]): string {
+    return `
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr>
+              <th class="table-header-cell text-left">Company</th>
+              <th class="table-header-cell text-left">Purchase order</th>
+              <th class="table-header-cell text-right">Ordered</th>
+              <th class="table-header-cell text-left">Fulfillment</th>
+              <th class="table-header-cell text-left">Action</th>
+            </tr>
+          </thead>
+          <tbody>${rows.map(renderPORow).join('')}</tbody>
+        </table>
+      </div>
     `;
   }
 
@@ -334,20 +335,18 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
     await loadDeliveries(poId);
   }
 
-  function wireActions() {
-    document.querySelectorAll('.batch-toggle').forEach((button) => {
-      button.addEventListener('click', () => {
-        const target = document.getElementById(button.getAttribute('aria-controls') || '');
-        if (!target) return;
-        const expanded = button.getAttribute('aria-expanded') === 'true';
-        button.setAttribute('aria-expanded', String(!expanded));
-        target.classList.toggle('hidden', expanded);
-        const icon = button.querySelector('.batch-icon');
-        if (icon) icon.textContent = expanded ? '+' : '−';
-      });
-    });
+  function lifecycleParams(summaryOnly = false): URLSearchParams {
+    const params = new URLSearchParams({ view: 'lifecycle' });
+    if (summaryOnly) params.set('summary_only', 'true');
+    const company = (document.getElementById('companyFilter') as HTMLSelectElement)?.value;
+    const status = (document.getElementById('statusFilter') as HTMLSelectElement)?.value;
+    if (company) params.set('company_id', company);
+    if (status) params.set('status', status);
+    return params;
+  }
 
-    document.querySelectorAll('.edit-delivery').forEach((button) => {
+  function wireDeliveryActions(scope: ParentNode) {
+    scope.querySelectorAll('.edit-delivery').forEach((button) => {
       button.addEventListener('click', async () => {
         const poId = (button as HTMLElement).dataset.poId;
         if (!poId) return;
@@ -365,32 +364,81 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
     });
   }
 
+  async function loadBatch(batchId: string, target: HTMLElement) {
+    try {
+      const params = lifecycleParams();
+      params.set('batch_id', batchId);
+      const resp = await fetch(`/api/purchase-orders?${params}`);
+      const json = await resp.json();
+      if (!resp.ok) throw new Error(json.error || 'Request failed');
+      const rows = (json.batches?.[0]?.rows || []).filter(
+        (row: any) => row.po && row.po.status !== 'cancelled'
+      );
+      target.innerHTML = rows.length
+        ? renderBatchBody(rows)
+        : '<div class="p-8 text-center text-sm text-gray-500">No purchase orders match these filters.</div>';
+      target.dataset.loaded = 'true';
+      wireDeliveryActions(target);
+    } catch (error) {
+      target.innerHTML = `<div class="p-8 text-center text-sm text-red-400">${escapeHtml(error instanceof Error ? error.message : 'Failed to load this batch.')}</div>`;
+    }
+  }
+
+  async function setBatchExpanded(button: HTMLButtonElement, expanded: boolean) {
+    const target = document.getElementById(button.getAttribute('aria-controls') || '');
+    if (!target) return;
+    button.setAttribute('aria-expanded', String(expanded));
+    target.classList.toggle('hidden', !expanded);
+    const chevron = button.querySelector('.batch-chevron');
+    if (chevron) chevron.textContent = expanded ? '▾' : '▸';
+    if (expanded && target.dataset.loaded !== 'true') {
+      await loadBatch(button.dataset.batchId || '', target);
+    }
+  }
+
+  function wireBatchToggles() {
+    document.querySelectorAll<HTMLButtonElement>('.batch-toggle').forEach((button) => {
+      button.addEventListener('click', async () => {
+        await setBatchExpanded(button, button.getAttribute('aria-expanded') !== 'true');
+      });
+    });
+  }
+
+  async function openFocusedPO(poId: string) {
+    const poResp = await fetch(`/api/purchase-orders?id=${encodeURIComponent(poId)}`);
+    const poJson = await poResp.json().catch(() => ({}));
+    const batchId = poResp.ok && Array.isArray(poJson.data) ? poJson.data[0]?.batch_id : '';
+    if (!batchId) return;
+    const button = document.querySelector<HTMLButtonElement>(
+      `.batch-toggle[data-batch-id="${CSS.escape(batchId)}"]`
+    );
+    if (!button) return;
+    await setBatchExpanded(button, true);
+    const editButton = document.querySelector<HTMLButtonElement>(
+      `.edit-delivery[data-po-id="${CSS.escape(poId)}"]`
+    );
+    editButton?.click();
+    editButton?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
   async function loadDeliveries(focusPo = '') {
     const container = document.getElementById('deliveryBatches')!;
     container.innerHTML = '<div class="card p-10 text-center text-gray-500 animate-pulse">Loading delivery lifecycle…</div>';
-    const params = new URLSearchParams({ view: 'lifecycle' });
-    const company = (document.getElementById('companyFilter') as HTMLSelectElement)?.value;
-    const status = (document.getElementById('statusFilter') as HTMLSelectElement)?.value;
-    if (company) params.set('company_id', company);
-    if (status) params.set('status', status);
 
     try {
+      const params = lifecycleParams(true);
       const resp = await fetch(`/api/purchase-orders?${params}`);
       const json = await resp.json();
       if (!resp.ok) throw new Error(json.error || 'Request failed');
       renderSummary(json.summary);
-      const groups = (json.batches || []).filter((group: any) =>
-        (group.rows || []).some((row: any) => row.po && row.po.status !== 'cancelled')
+      const groups = (json.batches || []).filter(
+        (group: any) => Number(group.summary?.purchase_orders || 0) > 0
       );
       container.innerHTML = groups.length
         ? groups.map(renderBatch).join('')
         : '<div class="card p-10 text-center text-gray-400">No purchase orders match these filters.</div>';
-      wireActions();
-      if (focusPo) {
-        const button = container.querySelector<HTMLButtonElement>(`.edit-delivery[data-po-id="${CSS.escape(focusPo)}"]`);
-        button?.click();
-        button?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
+      wireBatchToggles();
+      if (focusPo) await openFocusedPO(focusPo);
     } catch (error) {
       container.innerHTML = `<div class="card p-10 text-center text-red-400">${escapeHtml(error instanceof Error ? error.message : 'Failed to load deliveries.')}</div>`;
     }

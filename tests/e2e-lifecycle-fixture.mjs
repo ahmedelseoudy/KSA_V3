@@ -462,6 +462,19 @@ try {
   assert.equal(lifecyclePOs.summary.awaiting_confirmation, 2);
   assert.ok(lifecyclePOs.data.every((row) => row.po?.company?.id && row.po?.availability_order?.batch?.id === batch.id));
 
+  const { json: lifecyclePOSummaries } = await appApi(
+    `/api/purchase-orders?view=lifecycle&summary_only=true&batch_id=${encodeURIComponent(batch.id)}`,
+    { method: 'GET' },
+    jar
+  );
+  assert.deepEqual(lifecyclePOSummaries.data, []);
+  assert.equal(lifecyclePOSummaries.count, 2);
+  assert.equal(lifecyclePOSummaries.batches.length, 1);
+  assert.equal(lifecyclePOSummaries.batches[0].batch.id, batch.id);
+  assert.equal('rows' in lifecyclePOSummaries.batches[0], false);
+  assert.equal(lifecyclePOSummaries.summary.purchase_orders, 2);
+  assert.equal(lifecyclePOSummaries.summary.awaiting_confirmation, 2);
+
   const { status: duplicateStatus, json: duplicates } = await appApi('/api/purchase-orders', {
     method: 'POST',
     body: JSON.stringify({
