@@ -11,54 +11,161 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
 }
 ---
 
-<Layout title="Analytics - KSA CRM">
+<Layout title="Lifecycle Analytics - KSA CRM">
   <div class="max-w-7xl mx-auto">
-    <PageHeader title="Business Analytics" subtitle="Revenue, availability and delivery performance across companies" />
+    <PageHeader
+      title="Lifecycle Analytics"
+      subtitle="Measure supplier responses, purchase-order value, and delivery progress from one consistent lifecycle view"
+    />
 
-    <!-- KPI Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-      <StatCard label="Total Revenue" valueId="totalRevenue" valueClass="text-white" />
-      <StatCard label="Total Orders" valueId="totalOrders" valueClass="text-white" />
-      <StatCard label="Active Companies" valueId="activeCompanies" valueClass="text-white" />
-      <StatCard label="Avg Availability Rate" valueId="avgAvailRate" valueClass="text-green-400" />
-      <StatCard label="Delivery Rate" valueId="deliveryRate" valueClass="text-blue-400" />
+    <div class="sticky top-0 z-20 -mx-1 px-1 py-2 bg-gray-950/80 backdrop-blur mb-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_auto_auto_auto] gap-3 items-end bg-gray-800/60 border border-gray-700/60 rounded-xl p-3">
+        <div>
+          <label for="batchFilter" class="block text-xs text-gray-500 mb-1">Batch</label>
+          <select id="batchFilter" class="input w-full">
+            <option value="">All batches</option>
+          </select>
+        </div>
+        <div>
+          <label for="companyFilter" class="block text-xs text-gray-500 mb-1">Company</label>
+          <select id="companyFilter" class="input w-full">
+            <option value="">All companies</option>
+          </select>
+        </div>
+        <div>
+          <label for="dateFrom" class="block text-xs text-gray-500 mb-1">Created from</label>
+          <input id="dateFrom" type="date" class="input" />
+        </div>
+        <div>
+          <label for="dateTo" class="block text-xs text-gray-500 mb-1">Created to</label>
+          <input id="dateTo" type="date" class="input" />
+        </div>
+        <div class="flex gap-2">
+          <button id="resetFilters" class="btn btn-secondary btn-md">Reset</button>
+          <button id="refreshAnalytics" class="btn btn-primary btn-md">Refresh</button>
+        </div>
+      </div>
     </div>
 
-    <!-- Charts Row -->
+    <div id="analyticsError" class="hidden mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300"></div>
+
+    <div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 mb-6">
+      <StatCard label="Ordered value" valueId="orderedValue" valueClass="text-green-400" />
+      <StatCard label="Delivered value" valueId="deliveredValue" valueClass="text-blue-400" />
+      <StatCard label="Response completion" valueId="responseRate" valueClass="text-emerald-400" />
+      <StatCard label="Availability rate" valueId="availabilityRate" valueClass="text-cyan-400" />
+      <StatCard label="Quantity fill rate" valueId="fillRate" valueClass="text-orange-400" />
+      <StatCard label="Needs attention" valueId="attentionCount" valueClass="text-red-400" />
+    </div>
+
+    <div id="scopeSummary" class="mb-6 text-sm text-gray-500" aria-live="polite">Loading analytics…</div>
+
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-      <div class="bg-gray-800/60 rounded-xl p-5 border border-gray-700/60 shadow-card">
-        <h3 class="text-white font-semibold mb-4">Orders by Company</h3>
-        <canvas id="companyChart" height="250"></canvas>
-      </div>
-      <div class="bg-gray-800/60 rounded-xl p-5 border border-gray-700/60 shadow-card">
-        <h3 class="text-white font-semibold mb-4">Profit/Loss by Batch</h3>
-        <canvas id="profitChart" height="250"></canvas>
-      </div>
+      <section class="card p-5">
+        <div class="flex items-start justify-between gap-3 mb-4">
+          <div>
+            <h2 class="text-base font-semibold text-white">Ordered vs delivered value</h2>
+            <p class="text-xs text-gray-500 mt-1">Latest filtered batches; values are PO totals, not revenue or profit.</p>
+          </div>
+        </div>
+        <div class="h-72"><canvas id="batchValueChart"></canvas></div>
+      </section>
+
+      <section class="card p-5">
+        <div class="mb-4">
+          <h2 class="text-base font-semibold text-white">Batch lifecycle distribution</h2>
+          <p class="text-xs text-gray-500 mt-1">Current stage of each filtered batch.</p>
+        </div>
+        <div class="h-72"><canvas id="lifecycleChart"></canvas></div>
+      </section>
     </div>
 
-    <!-- Company Performance Table -->
-    <div class="bg-gray-800/60 rounded-xl border border-gray-700/60 shadow-card">
+    <section class="card overflow-hidden mb-6">
       <div class="px-5 py-4 border-b border-gray-700/60">
-        <h2 class="text-lg font-semibold text-white">Company Performance</h2>
+        <h2 class="text-lg font-semibold text-white">Batch performance</h2>
+        <p class="text-xs text-gray-500 mt-1">Newest filtered batches with response, PO, and fulfillment outcomes.</p>
       </div>
-      <div class="overflow-x-auto rounded-b-xl bg-gray-800/40">
+      <div class="overflow-x-auto">
         <table class="w-full text-sm">
           <thead>
             <tr>
-              <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Company</th>
-              <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Products</th>
-              <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Total PO Value</th>
-              <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Availability Rate</th>
-              <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Delivery Rate</th>
-              <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-800/80">Status</th>
+              <th class="table-header-cell text-left">Batch</th>
+              <th class="table-header-cell text-left">Lifecycle</th>
+              <th class="table-header-cell text-right">Responses</th>
+              <th class="table-header-cell text-right">PO value</th>
+              <th class="table-header-cell text-right">Fill rate</th>
+              <th class="table-header-cell text-left">Next action</th>
             </tr>
           </thead>
-          <tbody id="performanceTable">
-            <tr><td colspan="6" class="px-4 py-6 text-center text-gray-500 text-sm animate-pulse">Loading...</td></tr>
+          <tbody id="batchPerformance">
+            <tr><td colspan="6" class="px-4 py-8 text-center text-gray-500 animate-pulse">Loading batch performance…</td></tr>
           </tbody>
         </table>
       </div>
-    </div>
+    </section>
+
+    <section class="card overflow-hidden">
+      <div class="px-5 py-4 border-b border-gray-700/60 flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+        <div>
+          <h2 class="text-lg font-semibold text-white">Company performance</h2>
+          <p id="companyCount" class="text-xs text-gray-500 mt-1">Loading companies…</p>
+        </div>
+        <div class="flex flex-wrap items-end gap-3">
+          <div>
+            <label for="companySort" class="block text-xs text-gray-500 mb-1">Sort by</label>
+            <select id="companySort" class="input py-1.5">
+              <option value="ordered_value">Ordered value</option>
+              <option value="delivered_value">Delivered value</option>
+              <option value="fill_rate">Fill rate</option>
+              <option value="response_rate">Response rate</option>
+              <option value="availability_rate">Availability rate</option>
+              <option value="overdue">Overdue</option>
+              <option value="company_name">Company name</option>
+            </select>
+          </div>
+          <div>
+            <label for="sortDirection" class="block text-xs text-gray-500 mb-1">Direction</label>
+            <select id="sortDirection" class="input py-1.5">
+              <option value="desc">Highest first</option>
+              <option value="asc">Lowest first</option>
+            </select>
+          </div>
+          <div>
+            <label for="pageSize" class="block text-xs text-gray-500 mb-1">Rows</label>
+            <select id="pageSize" class="input py-1.5">
+              <option value="10">10</option>
+              <option value="25" selected>25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr>
+              <th class="table-header-cell text-left">Company</th>
+              <th class="table-header-cell text-right">Responses</th>
+              <th class="table-header-cell text-right">Availability</th>
+              <th class="table-header-cell text-right">Ordered</th>
+              <th class="table-header-cell text-right">Delivered</th>
+              <th class="table-header-cell text-left">Decision</th>
+            </tr>
+          </thead>
+          <tbody id="companyPerformance">
+            <tr><td colspan="6" class="px-4 py-8 text-center text-gray-500 animate-pulse">Loading company performance…</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="px-4 py-3 border-t border-gray-700/60 flex items-center justify-between gap-3">
+        <button id="previousPage" class="btn btn-secondary btn-sm" disabled>Previous</button>
+        <span id="pageLabel" class="text-sm text-gray-500">Page 1 of 1</span>
+        <button id="nextPage" class="btn btn-secondary btn-sm" disabled>Next</button>
+      </div>
+    </section>
   </div>
 </Layout>
 
@@ -66,147 +173,309 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
   import { Chart, registerables } from 'chart.js';
   Chart.register(...registerables);
 
-  async function loadAnalytics() {
-    // Load companies
-    const compResp = await fetch('/api/companies');
-    const compData = compResp.ok ? await compResp.json() : { data: [] };
-    const companies = compData.data || [];
+  let page = 1;
+  let requestSequence = 0;
+  let filtersLoaded = false;
+  let batchValueChart: Chart | null = null;
+  let lifecycleChart: Chart | null = null;
 
-    document.getElementById('activeCompanies')!.textContent = String(companies.filter((c: any) => c.status === 'active').length);
-
-    // Load order batches
-    const ordersResp = await fetch('/api/orders');
-    const ordersData = ordersResp.ok ? await ordersResp.json() : { data: [] };
-    const batches = ordersData.data || [];
-
-    document.getElementById('totalOrders')!.textContent = String(batches.length);
-    const totalValue = batches.reduce((sum: number, b: any) => sum + Number(b.total_value || 0), 0);
-    document.getElementById('totalRevenue')!.textContent = `$${totalValue.toFixed(0)}`;
-
-    // Load availability data
-    const availResp = await fetch('/api/availability');
-    const availData = availResp.ok ? await availResp.json() : { data: [] };
-    const availOrders = availData.data || [];
-
-    const totalAvailItems = availOrders.reduce((sum: number, ao: any) => sum + (ao.total_items || 0), 0);
-    const totalAvailable = availOrders.reduce((sum: number, ao: any) => sum + (ao.available_count || 0), 0);
-    const avgRate = totalAvailItems > 0 ? ((totalAvailable / totalAvailItems) * 100).toFixed(0) : '0';
-    document.getElementById('avgAvailRate')!.textContent = `${avgRate}%`;
-
-    // Load POs for delivery rate
-    const poResp = await fetch('/api/purchase-orders');
-    const poData = poResp.ok ? await poResp.json() : { data: [] };
-    const pos = poData.data || [];
-
-    const totalPOs = pos.length;
-    const deliveredPOs = pos.filter((po: any) => po.status === 'delivered').length;
-    const delRate = totalPOs > 0 ? ((deliveredPOs / totalPOs) * 100).toFixed(0) : '0';
-    document.getElementById('deliveryRate')!.textContent = `${delRate}%`;
-
-    // Company chart
-    renderCompanyChart(companies, availOrders, pos);
-    renderProfitChart(batches);
-    renderPerformanceTable(companies, availOrders, pos);
+  function escapeHtml(value: unknown): string {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
   }
 
-  function renderCompanyChart(companies: any[], availOrders: any[], pos: any[]) {
-    const canvas = document.getElementById('companyChart') as HTMLCanvasElement;
-    if (!canvas) return;
+  function numeric(value: unknown): number {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
 
-    const companyPOs = new Map<string, number>();
-    for (const po of pos) {
-      const name = po.company?.name || 'Unknown';
-      companyPOs.set(name, (companyPOs.get(name) || 0) + Number(po.total_amount || 0));
+  function money(value: unknown): string {
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: 0,
+    }).format(numeric(value));
+  }
+
+  function percent(value: unknown): string {
+    return `${numeric(value).toFixed(1)}%`;
+  }
+
+  function shortDate(value: unknown): string {
+    if (!value) return '—';
+    const parsed = new Date(String(value));
+    return Number.isNaN(parsed.getTime()) ? '—' : parsed.toLocaleDateString();
+  }
+
+  function label(value: unknown): string {
+    return String(value || 'not started').replace(/_/g, ' ');
+  }
+
+  function statusBadge(status: unknown): string {
+    const key = String(status || '');
+    const classes: Record<string, string> = {
+      completed: 'badge-success',
+      delivered: 'badge-success',
+      partially_delivered: 'badge-warning',
+      po_sent: 'badge-info',
+      ready_to_schedule: 'badge-brand',
+      awaiting_confirmation: 'badge-warning',
+      responses_ready: 'badge-info',
+      ready_for_po: 'badge-info',
+      availability_sent: 'badge-pending',
+      awaiting_response: 'badge-pending',
+      created: 'badge-pending',
+      overdue: 'badge-danger',
+      cancelled: 'badge-danger',
+    };
+    return `<span class="badge ${classes[key] || 'badge-pending'}">${escapeHtml(label(key))}</span>`;
+  }
+
+  function setLoading() {
+    document.getElementById('scopeSummary')!.textContent = 'Loading lifecycle analytics…';
+    document.getElementById('batchPerformance')!.innerHTML =
+      '<tr><td colspan="6" class="px-4 py-8 text-center text-gray-500 animate-pulse">Loading batch performance…</td></tr>';
+    document.getElementById('companyPerformance')!.innerHTML =
+      '<tr><td colspan="6" class="px-4 py-8 text-center text-gray-500 animate-pulse">Loading company performance…</td></tr>';
+    (document.getElementById('refreshAnalytics') as HTMLButtonElement).disabled = true;
+  }
+
+  function queryParams(): URLSearchParams {
+    const params = new URLSearchParams({
+      page: String(page),
+      page_size: (document.getElementById('pageSize') as HTMLSelectElement).value,
+      sort: (document.getElementById('companySort') as HTMLSelectElement).value,
+      direction: (document.getElementById('sortDirection') as HTMLSelectElement).value,
+    });
+    const values: Array<[string, string]> = [
+      ['batch_id', (document.getElementById('batchFilter') as HTMLSelectElement).value],
+      ['company_id', (document.getElementById('companyFilter') as HTMLSelectElement).value],
+      ['date_from', (document.getElementById('dateFrom') as HTMLInputElement).value],
+      ['date_to', (document.getElementById('dateTo') as HTMLInputElement).value],
+    ];
+    for (const [key, value] of values) {
+      if (value) params.set(key, value);
     }
+    return params;
+  }
 
-    const labels = Array.from(companyPOs.keys()).slice(0, 10);
-    const values = labels.map(l => companyPOs.get(l) || 0);
+  function renderFilterOptions(filters: any) {
+    if (filtersLoaded) return;
+    const batch = document.getElementById('batchFilter') as HTMLSelectElement;
+    const company = document.getElementById('companyFilter') as HTMLSelectElement;
+    batch.innerHTML = '<option value="">All batches</option>' + (filters?.batches || [])
+      .map((row: any) => `<option value="${escapeHtml(row.id)}">${escapeHtml(row.name || 'Unnamed batch')} · ${escapeHtml(shortDate(row.created_at))}</option>`)
+      .join('');
+    company.innerHTML = '<option value="">All companies</option>' + (filters?.companies || [])
+      .map((row: any) => `<option value="${escapeHtml(row.id)}">${escapeHtml(row.name || 'Unnamed company')}</option>`)
+      .join('');
+    filtersLoaded = true;
+  }
 
-    new Chart(canvas, {
+  function renderSummary(summary: any) {
+    document.getElementById('orderedValue')!.textContent = money(summary?.ordered_value);
+    document.getElementById('deliveredValue')!.textContent = money(summary?.delivered_value);
+    document.getElementById('responseRate')!.textContent = percent(summary?.response_rate);
+    document.getElementById('availabilityRate')!.textContent = percent(summary?.availability_rate);
+    document.getElementById('fillRate')!.textContent = percent(summary?.fill_rate);
+    document.getElementById('attentionCount')!.textContent = String(numeric(summary?.needs_attention));
+    const batches = numeric(summary?.batches);
+    const companies = numeric(summary?.companies);
+    const purchaseOrders = numeric(summary?.purchase_orders);
+    document.getElementById('scopeSummary')!.textContent =
+      `${batches} ${batches === 1 ? 'batch' : 'batches'} · ${companies} ${companies === 1 ? 'company' : 'companies'} · ${purchaseOrders} active ${purchaseOrders === 1 ? 'purchase order' : 'purchase orders'} · ${numeric(summary?.awaiting_confirmation)} awaiting confirmation · ${numeric(summary?.overdue)} overdue`;
+  }
+
+  function renderBatchPerformance(rows: any[]) {
+    const target = document.getElementById('batchPerformance')!;
+    target.innerHTML = rows.length ? rows.map((row) => `
+      <tr class="border-t border-gray-700/40 hover:bg-gray-800/40 transition-colors">
+        <td class="px-4 py-3">
+          <a href="/availability?batch_id=${encodeURIComponent(row.id)}" class="font-medium text-white hover:text-purple-300">${escapeHtml(row.name || 'Unnamed batch')}</a>
+          <div class="text-xs text-gray-500 mt-1">${escapeHtml(shortDate(row.created_at))} · ${numeric(row.companies)} companies</div>
+        </td>
+        <td class="px-4 py-3">${statusBadge(row.lifecycle_stage)}</td>
+        <td class="px-4 py-3 text-right">
+          <div class="text-gray-100 tabular-nums">${percent(row.response_rate)}</div>
+          <div class="text-xs text-gray-500 mt-1">${numeric(row.answered_items)}/${numeric(row.requested_items)} items</div>
+        </td>
+        <td class="px-4 py-3 text-right">
+          <div class="text-gray-100 tabular-nums">${money(row.ordered_value)}</div>
+          <div class="text-xs text-blue-400 mt-1">${money(row.delivered_value)} delivered</div>
+        </td>
+        <td class="px-4 py-3 text-right">
+          <div class="text-gray-100 tabular-nums">${percent(row.fill_rate)}</div>
+          <div class="text-xs ${numeric(row.overdue) > 0 ? 'text-red-400' : 'text-gray-500'} mt-1">${numeric(row.overdue)} overdue</div>
+        </td>
+        <td class="px-4 py-3 text-gray-300 max-w-[15rem]">${escapeHtml(row.next_action || 'Review batch')}</td>
+      </tr>
+    `).join('') : '<tr><td colspan="6" class="px-4 py-8 text-center text-gray-500">No batches match these filters.</td></tr>';
+  }
+
+  function renderCompanyPerformance(payload: any) {
+    const rows = payload?.data || [];
+    const target = document.getElementById('companyPerformance')!;
+    target.innerHTML = rows.length ? rows.map((row: any) => `
+      <tr class="border-t border-gray-700/40 hover:bg-gray-800/40 transition-colors">
+        <td class="px-4 py-3">
+          <div class="font-medium text-white">${escapeHtml(row.name || 'Unknown company')}</div>
+          <div class="text-xs text-gray-500 mt-1">${numeric(row.batches)} batches · ${numeric(row.purchase_orders)} POs</div>
+        </td>
+        <td class="px-4 py-3 text-right">
+          <div class="text-gray-100 tabular-nums">${percent(row.response_rate)}</div>
+          <div class="text-xs text-gray-500 mt-1">${numeric(row.answered_items)}/${numeric(row.requested_items)} items</div>
+        </td>
+        <td class="px-4 py-3 text-right text-cyan-300 tabular-nums">${percent(row.availability_rate)}</td>
+        <td class="px-4 py-3 text-right">
+          <div class="text-gray-100 tabular-nums">${money(row.ordered_value)}</div>
+          <div class="text-xs text-gray-500 mt-1">${numeric(row.ordered_qty)} units</div>
+        </td>
+        <td class="px-4 py-3 text-right">
+          <div class="text-blue-300 tabular-nums">${money(row.delivered_value)}</div>
+          <div class="text-xs text-gray-500 mt-1">${percent(row.fill_rate)} qty fill</div>
+        </td>
+        <td class="px-4 py-3">
+          ${statusBadge(row.state)}
+          <div class="text-xs text-gray-400 mt-2 max-w-[14rem]">${escapeHtml(row.next_action || 'Review')}</div>
+        </td>
+      </tr>
+    `).join('') : '<tr><td colspan="6" class="px-4 py-8 text-center text-gray-500">No companies match these filters.</td></tr>';
+
+    document.getElementById('companyCount')!.textContent =
+      `${numeric(payload?.count)} companies in the selected scope`;
+    document.getElementById('pageLabel')!.textContent =
+      `Page ${numeric(payload?.page) || 1} of ${numeric(payload?.pages) || 1}`;
+    (document.getElementById('previousPage') as HTMLButtonElement).disabled = numeric(payload?.page) <= 1;
+    (document.getElementById('nextPage') as HTMLButtonElement).disabled =
+      numeric(payload?.page) >= numeric(payload?.pages);
+    page = numeric(payload?.page) || 1;
+  }
+
+  function renderCharts(batches: any[], distribution: Record<string, number>) {
+    batchValueChart?.destroy();
+    lifecycleChart?.destroy();
+
+    const recent = batches.slice(0, 12).reverse();
+    batchValueChart = new Chart(document.getElementById('batchValueChart') as HTMLCanvasElement, {
       type: 'bar',
       data: {
-        labels,
-        datasets: [{
-          label: 'PO Value ($)',
-          data: values,
-          backgroundColor: 'rgba(139, 92, 246, 0.5)',
-          borderColor: '#8b5cf6',
-          borderWidth: 1,
-        }],
+        labels: recent.map((row) => row.name || 'Unnamed'),
+        datasets: [
+          {
+            label: 'Ordered',
+            data: recent.map((row) => numeric(row.ordered_value)),
+            backgroundColor: 'rgba(34, 197, 94, 0.45)',
+            borderColor: '#22c55e',
+            borderWidth: 1,
+          },
+          {
+            label: 'Delivered',
+            data: recent.map((row) => numeric(row.delivered_value)),
+            backgroundColor: 'rgba(59, 130, 246, 0.55)',
+            borderColor: '#3b82f6',
+            borderWidth: 1,
+          },
+        ],
       },
       options: {
         responsive: true,
+        maintainAspectRatio: false,
         plugins: { legend: { labels: { color: '#94a3b8' } } },
         scales: {
           x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
-          y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+          y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' }, beginAtZero: true },
         },
       },
     });
-  }
 
-  function renderProfitChart(batches: any[]) {
-    const canvas = document.getElementById('profitChart') as HTMLCanvasElement;
-    if (!canvas) return;
-
-    const labels = batches.slice(0, 10).map((b: any) => b.name || 'Unnamed');
-    const values = batches.slice(0, 10).map((b: any) => Number(b.total_value || 0));
-
-    new Chart(canvas, {
-      type: 'line',
+    const stageLabels: Record<string, string> = {
+      created: 'Created',
+      availability_sent: 'Availability sent',
+      responses_ready: 'Responses ready',
+      po_sent: 'POs sent',
+      partially_delivered: 'Partially delivered',
+      completed: 'Completed',
+      cancelled: 'Cancelled',
+    };
+    const entries = Object.entries(distribution || {}).filter(([, count]) => numeric(count) > 0);
+    lifecycleChart = new Chart(document.getElementById('lifecycleChart') as HTMLCanvasElement, {
+      type: 'doughnut',
       data: {
-        labels,
+        labels: entries.map(([stage]) => stageLabels[stage] || label(stage)),
         datasets: [{
-          label: 'Batch Value ($)',
-          data: values,
-          borderColor: '#3b82f6',
-          backgroundColor: 'rgba(59, 130, 246, 0.1)',
-          fill: true,
-          tension: 0.3,
+          data: entries.map(([, count]) => numeric(count)),
+          backgroundColor: ['#64748b', '#8b5cf6', '#06b6d4', '#3b82f6', '#f97316', '#22c55e', '#ef4444'],
+          borderColor: '#111827',
+          borderWidth: 2,
         }],
       },
       options: {
         responsive: true,
-        plugins: { legend: { labels: { color: '#94a3b8' } } },
-        scales: {
-          x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
-          y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
-        },
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8' } } },
       },
     });
   }
 
-  function renderPerformanceTable(companies: any[], availOrders: any[], pos: any[]) {
-    const tbody = document.getElementById('performanceTable');
-    if (!tbody) return;
+  async function loadAnalytics() {
+    const requestId = ++requestSequence;
+    setLoading();
+    const error = document.getElementById('analyticsError')!;
+    error.classList.add('hidden');
 
-    const rows = companies.map((c: any) => {
-      const companyAvail = availOrders.filter((ao: any) => ao.company_id === c.id);
-      const totalItems = companyAvail.reduce((s: number, ao: any) => s + (ao.total_items || 0), 0);
-      const availItems = companyAvail.reduce((s: number, ao: any) => s + (ao.available_count || 0), 0);
-      const availRate = totalItems > 0 ? ((availItems / totalItems) * 100).toFixed(0) : '-';
-
-      const companyPOs = pos.filter((po: any) => po.company_id === c.id);
-      const poValue = companyPOs.reduce((s: number, po: any) => s + Number(po.total_amount || 0), 0);
-      const deliveredCount = companyPOs.filter((po: any) => po.status === 'delivered').length;
-      const deliveryRate = companyPOs.length > 0 ? ((deliveredCount / companyPOs.length) * 100).toFixed(0) : '-';
-
-      return `
-        <tr class="border-t border-gray-700/40 hover:bg-gray-800/40 transition-colors">
-          <td class="px-4 py-3 text-white font-medium">${c.name}</td>
-          <td class="px-4 py-3 text-right text-white tabular-nums">-</td>
-          <td class="px-4 py-3 text-right text-white tabular-nums">$${poValue.toFixed(0)}</td>
-          <td class="px-4 py-3 text-right tabular-nums ${Number(availRate) >= 70 ? 'text-green-400' : Number(availRate) >= 40 ? 'text-yellow-400' : 'text-red-400'}">${availRate}%</td>
-          <td class="px-4 py-3 text-right text-white tabular-nums">${deliveryRate}%</td>
-          <td class="px-4 py-3 text-center">
-            <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${c.status === 'active' ? 'bg-green-500/10 text-green-300 ring-1 ring-inset ring-green-500/30' : 'bg-gray-500/10 text-gray-300 ring-1 ring-inset ring-gray-500/30'}">${c.status}</span>
-          </td>
-        </tr>
-      `;
-    }).join('');
-
-    tbody.innerHTML = rows || '<tr><td colspan="6" class="px-4 py-6 text-center text-gray-400 text-sm">No data</td></tr>';
+    try {
+      const resp = await fetch(`/api/analytics?${queryParams()}`);
+      const json = await resp.json();
+      if (!resp.ok) throw new Error(json.error || 'Failed to load analytics.');
+      if (requestId !== requestSequence) return;
+      renderFilterOptions(json.filters);
+      renderSummary(json.summary);
+      renderBatchPerformance(json.batch_performance || []);
+      renderCompanyPerformance(json.company_performance);
+      renderCharts(json.batch_performance || [], json.lifecycle_distribution || {});
+    } catch (loadError) {
+      if (requestId !== requestSequence) return;
+      error.textContent = loadError instanceof Error ? loadError.message : 'Failed to load analytics.';
+      error.classList.remove('hidden');
+      document.getElementById('scopeSummary')!.textContent = 'Analytics could not be loaded.';
+    } finally {
+      if (requestId === requestSequence) {
+        (document.getElementById('refreshAnalytics') as HTMLButtonElement).disabled = false;
+      }
+    }
   }
 
-  loadAnalytics();
+  function resetAndLoad() {
+    page = 1;
+    void loadAnalytics();
+  }
+
+  for (const id of ['batchFilter', 'companyFilter', 'dateFrom', 'dateTo', 'companySort', 'sortDirection', 'pageSize']) {
+    document.getElementById(id)?.addEventListener('change', resetAndLoad);
+  }
+  document.getElementById('refreshAnalytics')?.addEventListener('click', () => void loadAnalytics());
+  document.getElementById('resetFilters')?.addEventListener('click', () => {
+    (document.getElementById('batchFilter') as HTMLSelectElement).value = '';
+    (document.getElementById('companyFilter') as HTMLSelectElement).value = '';
+    (document.getElementById('dateFrom') as HTMLInputElement).value = '';
+    (document.getElementById('dateTo') as HTMLInputElement).value = '';
+    page = 1;
+    void loadAnalytics();
+  });
+  document.getElementById('previousPage')?.addEventListener('click', () => {
+    if (page > 1) {
+      page -= 1;
+      void loadAnalytics();
+    }
+  });
+  document.getElementById('nextPage')?.addEventListener('click', () => {
+    page += 1;
+    void loadAnalytics();
+  });
+
+  void loadAnalytics();
 </script>

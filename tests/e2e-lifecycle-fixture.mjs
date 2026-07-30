@@ -475,6 +475,23 @@ try {
   assert.equal(lifecyclePOSummaries.summary.purchase_orders, 2);
   assert.equal(lifecyclePOSummaries.summary.awaiting_confirmation, 2);
 
+  const { json: analytics } = await appApi(
+    `/api/analytics?batch_id=${encodeURIComponent(batch.id)}&page_size=1`,
+    { method: 'GET' },
+    jar
+  );
+  assert.equal(analytics.summary.batches, 1);
+  assert.equal(analytics.summary.companies, 2);
+  assert.equal(analytics.summary.purchase_orders, 2);
+  assert.equal(analytics.summary.awaiting_confirmation, 2);
+  assert.equal(analytics.summary.requested_items, 4);
+  assert.equal(analytics.summary.delivered_qty, 0);
+  assert.equal(analytics.batch_performance.length, 1);
+  assert.equal(analytics.batch_performance[0].id, batch.id);
+  assert.equal(analytics.company_performance.count, 2);
+  assert.equal(analytics.company_performance.data.length, 1);
+  assert.equal(analytics.company_performance.pages, 2);
+
   const { status: duplicateStatus, json: duplicates } = await appApi('/api/purchase-orders', {
     method: 'POST',
     body: JSON.stringify({
