@@ -6,8 +6,8 @@
  - Records one complete response and one partial response
  - Verifies default/include-partial PO eligibility, creation, and duplicate handling
  - Locks the legacy PO list/item response shapes and lifecycle decision response
- - Verifies migration 007's four lifecycle views as admin and as a disposable company user
- - Removes the batch, products, companies, audit rows, and auth user in finally
+ - Verifies base-table RLS, public APIs, and migration 007's lifecycle views as two disposable company users
+ - Removes the batch, products, companies, audit rows, and auth users in finally
 
  Required:
    ADMIN_PASSWORD
@@ -130,6 +130,18 @@ async function adminLogin(jar) {
   assert.ok(jar.get('sb-access-token'), 'admin login did not set sb-access-token');
 }
 
+async function userLogin(jar, email, password) {
+  const form = new URLSearchParams({ email, password });
+  const response = await fetch(`${BASE_URL}/api/login`, {
+    method: 'POST',
+    body: form,
+    redirect: 'manual',
+  });
+  jar.setFromResponse(response);
+  assert.ok([200, 302].includes(response.status), `company login returned ${response.status}`);
+  assert.ok(jar.get('sb-access-token'), 'company login did not set sb-access-token');
+}
+
 async function supabaseRequest(
   pathname,
   { method = 'GET', body, token = SUPABASE_SERVICE_ROLE_KEY, key = SUPABASE_SERVICE_ROLE_KEY, headers = {} } = {}
@@ -157,6 +169,17 @@ async function restRows(view, batchId, token) {
     [view === 'v_batch_lifecycle' ? 'id' : 'batch_id']: `eq.${batchId}`,
   });
   return supabaseRequest(`/rest/v1/${view}?${params}`, {
+    token,
+    key: SUPABASE_ANON_KEY,
+  });
+}
+
+async function restTableRows(table, filterName, filterValue, token, select = '*') {
+  const params = new URLSearchParams({
+    select,
+    [filterName]: `eq.${filterValue}`,
+  });
+  return supabaseRequest(`/rest/v1/${table}?${params}`, {
     token,
     key: SUPABASE_ANON_KEY,
   });
@@ -265,7 +288,7 @@ const created = {
   companyIds: [],
   productIds: [],
   availabilityOrderIds: [],
-  authUserId: '',
+  authUserIds: [],
 };
 let testError = null;
 
@@ -505,18 +528,133 @@ try {
   assertResult(duplicates, completeOrder.id, 'skipped', 'already_generated');
   assertResult(duplicates, partialOrder.id, 'skipped', 'already_generated');
 
-  console.log('7) Link a disposable company user and validate lifecycle views');
-  const companyUser = await createDisposableCompanyUser(
-    companies[0],
-    runId,
-    (id) => { created.authUserId = id; }
-  );
-  await appApi('/api/companies', {
-    method: 'PUT',
-    body: JSON.stringify({ id: companies[0].id, user_id: companyUser.id }),
-  }, jar);
-  const companyToken = await companyAccessToken(companyUser);
+  console.log('7) Link two disposable company users and validate base-table RLS');
+  const companyUsers = [];
+  for (const [index, company] of companies.entries()) {
+    const companyUser = await createDisposableCompanyUser(
+      company,
+      `${runId}-${index + 1}`,
+      (id) => { created.authUserIds.push(id); }
+    );
+    await appApi('/api/companies', {
+      method: 'PUT',
+      body: JSON.stringify({ id: company.id, user_id: companyUser.id }),
+    }, jar);
+    companyUsers.push(companyUser);
+  }
+
+  const companyTokens = await Promise.all(companyUsers.map(companyAccessToken));
   const adminToken = jar.get('sb-access-token');
+
+  for (const [index, token] of companyTokens.entries()) {
+    const ownCompany = companies[index];
+    const otherCompany = companies[index === 0 ? 1 : 0];
+
+    const visibleCompanies = await restTableRows('companies', 'id', ownCompany.id, token, 'id');
+    assert.deepEqual(visibleCompanies.map((row) => row.id), [ownCompany.id]);
+    const hiddenCompany = await restTableRows('companies', 'id', otherCompany.id, token, 'id');
+    assert.deepEqual(hiddenCompany, []);
+
+    const visibleProducts = await restTableRows('products', 'company_id', ownCompany.id, token, 'id,company_id');
+    assert.equal(visibleProducts.length, 2);
+    assert.ok(visibleProducts.every((row) => row.company_id === ownCompany.id));
+    const hiddenProducts = await restTableRows('products', 'company_id', otherCompany.id, token, 'id');
+    assert.deepEqual(hiddenProducts, []);
+
+    const visibleOrderItems = await restTableRows('order_items', 'batch_id', batch.id, token, 'id,company_id');
+    assert.equal(visibleOrderItems.length, 2);
+    assert.ok(visibleOrderItems.every((row) => row.company_id === ownCompany.id));
+
+    const visibleAvailability = await restTableRows('availability_orders', 'batch_id', batch.id, token, 'id,company_id');
+    assert.equal(visibleAvailability.length, 1);
+    assert.equal(visibleAvailability[0].company_id, ownCompany.id);
+
+    const visibleResponses = await restTableRows('availability_responses', 'availability_order_id', visibleAvailability[0].id, token, 'id');
+    assert.equal(visibleResponses.length, 2);
+    const hiddenResponses = await restTableRows(
+      'availability_responses',
+      'availability_order_id',
+      index === 0 ? partialOrder.id : completeOrder.id,
+      token,
+      'id'
+    );
+    assert.deepEqual(hiddenResponses, []);
+
+    const visiblePOs = await restTableRows('purchase_orders', 'batch_id', batch.id, token, 'id,company_id');
+    assert.equal(visiblePOs.length, 1);
+    assert.equal(visiblePOs[0].company_id, ownCompany.id);
+    const visiblePOItems = await restTableRows('purchase_order_items', 'purchase_order_id', visiblePOs[0].id, token, 'id');
+    assert.ok(visiblePOItems.length > 0);
+    const otherPOId = generatedPurchaseOrderIds.find((id) => id !== visiblePOs[0].id);
+    const hiddenPOItems = await restTableRows('purchase_order_items', 'purchase_order_id', otherPOId, token, 'id');
+    assert.deepEqual(hiddenPOItems, []);
+  }
+
+  console.log('8) Validate company-facing API isolation and lifecycle views');
+  const companyJars = [new CookieJar(), new CookieJar()];
+  await Promise.all(companyUsers.map((user, index) =>
+    userLogin(companyJars[index], user.email, user.password)
+  ));
+
+  for (const [index, companyJar] of companyJars.entries()) {
+    const ownCompany = companies[index];
+    const ownAvailabilityOrder = index === 0 ? completeOrder : partialOrder;
+    const otherAvailabilityOrder = index === 0 ? partialOrder : completeOrder;
+
+    const { json: apiAvailability } = await appApi(
+      `/api/availability?batch_id=${encodeURIComponent(batch.id)}`,
+      { method: 'GET' },
+      companyJar
+    );
+    assert.equal(apiAvailability.data.length, 1);
+    assert.equal(apiAvailability.data[0].company_id, ownCompany.id);
+
+    const { json: ownDetails } = await appApi(
+      `/api/availability?id=${encodeURIComponent(ownAvailabilityOrder.id)}`,
+      { method: 'GET' },
+      companyJar
+    );
+    assert.equal(ownDetails.data.length, 2);
+
+    const { status: crossAvailabilityStatus } = await appApi(
+      `/api/availability?id=${encodeURIComponent(otherAvailabilityOrder.id)}`,
+      { method: 'GET' },
+      companyJar,
+      { allowFailure: true }
+    );
+    assert.equal(crossAvailabilityStatus, 403);
+
+    const { json: apiPOs } = await appApi(
+      `/api/purchase-orders?batch_id=${encodeURIComponent(batch.id)}`,
+      { method: 'GET' },
+      companyJar
+    );
+    assert.equal(apiPOs.data.length, 1);
+    assert.equal(apiPOs.data[0].company_id, ownCompany.id);
+
+    const ownPO = apiPOs.data[0];
+    const otherPOId = generatedPurchaseOrderIds.find((id) => id !== ownPO.id);
+    const { json: ownPOItems } = await appApi(
+      `/api/purchase-orders?id=${encodeURIComponent(ownPO.id)}&items=true`,
+      { method: 'GET' },
+      companyJar
+    );
+    assert.ok(ownPOItems.data.length > 0);
+    const { json: crossPOItems } = await appApi(
+      `/api/purchase-orders?id=${encodeURIComponent(otherPOId)}&items=true`,
+      { method: 'GET' },
+      companyJar
+    );
+    assert.deepEqual(crossPOItems.data, []);
+
+    const { status: lifecycleStatus } = await appApi(
+      `/api/purchase-orders?view=lifecycle&batch_id=${encodeURIComponent(batch.id)}`,
+      { method: 'GET' },
+      companyJar,
+      { allowFailure: true }
+    );
+    assert.equal(lifecycleStatus, 403);
+  }
 
   const adminAvailability = await restRows('v_availability_order_progress', batch.id, adminToken);
   assert.equal(adminAvailability.length, 2);
@@ -535,27 +673,29 @@ try {
   assert.equal(adminBatches.length, 1);
   assert.equal(adminBatches[0].lifecycle_stage, 'po_sent');
 
-  const companyAvailability = await restRows('v_availability_order_progress', batch.id, companyToken);
-  assert.equal(companyAvailability.length, 1);
-  assert.equal(companyAvailability[0].company_id, companies[0].id);
+  for (const [index, companyToken] of companyTokens.entries()) {
+    const companyAvailability = await restRows('v_availability_order_progress', batch.id, companyToken);
+    assert.equal(companyAvailability.length, 1);
+    assert.equal(companyAvailability[0].company_id, companies[index].id);
 
-  const companyPOs = await restRows('v_purchase_order_progress', batch.id, companyToken);
-  assert.equal(companyPOs.length, 1);
-  assert.equal(companyPOs[0].company_id, companies[0].id);
+    const companyPOs = await restRows('v_purchase_order_progress', batch.id, companyToken);
+    assert.equal(companyPOs.length, 1);
+    assert.equal(companyPOs[0].company_id, companies[index].id);
 
-  const companyLifecycle = await restRows('v_batch_company_lifecycle', batch.id, companyToken);
-  assert.equal(companyLifecycle.length, 1);
-  assert.equal(companyLifecycle[0].company_id, companies[0].id);
+    const companyLifecycle = await restRows('v_batch_company_lifecycle', batch.id, companyToken);
+    assert.equal(companyLifecycle.length, 1);
+    assert.equal(companyLifecycle[0].company_id, companies[index].id);
 
-  const companyBatches = await restRows('v_batch_lifecycle', batch.id, companyToken);
-  assert.deepEqual(companyBatches, [], 'company callers must not bypass order_batches admin-only RLS');
+    const companyBatches = await restRows('v_batch_lifecycle', batch.id, companyToken);
+    assert.deepEqual(companyBatches, [], 'company callers must not bypass order_batches admin-only RLS');
+  }
 
   console.log('E2E LIFECYCLE SUCCESS');
 } catch (error) {
   testError = error;
   console.error('E2E LIFECYCLE FAILED:', error instanceof Error ? error.message : error);
 } finally {
-  console.log('8) Cleanup disposable records');
+  console.log('9) Cleanup disposable records');
   const cleanupErrors = [];
   const cleanup = async (label, action) => {
     try {
@@ -589,8 +729,8 @@ try {
       jar
     ));
   }
-  if (created.authUserId) {
-    await cleanup('auth user', () => cleanupAuthUser(created.authUserId));
+  for (const authUserId of created.authUserIds) {
+    await cleanup(`auth user ${authUserId}`, () => cleanupAuthUser(authUserId));
   }
   await cleanup('batch verification', () => assertTableRowsRemoved(
     'order_batches',

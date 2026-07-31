@@ -466,23 +466,29 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
         result.innerHTML = `<span class="text-red-300">Error: ${json.error || 'Upload failed'}</span>`;
         return;
       }
+      const zeroMatches = json.matched === 0;
       result.innerHTML = `
-        <div class="p-3 rounded-lg bg-green-500/10 ring-1 ring-inset ring-green-500/30">
-          <div class="text-green-300 font-semibold">✓ Upload complete!</div>
+        <div class="p-3 rounded-lg ${zeroMatches ? 'bg-amber-500/10 ring-1 ring-inset ring-amber-500/30' : 'bg-green-500/10 ring-1 ring-inset ring-green-500/30'}">
+          <div class="${zeroMatches ? 'text-amber-300' : 'text-green-300'} font-semibold">${zeroMatches ? 'Upload saved, but nothing matched' : '✓ Upload complete!'}</div>
           <div class="text-gray-300 mt-1 tabular-nums">${json.saved} items saved — <span class="text-green-300">${json.matched} matched</span>, <span class="text-red-300">${json.missing} unmatched</span>.</div>
+          ${json.replaced ? `<div class="text-gray-400 text-xs mt-1">Replaced ${json.replaced} previous batch item${json.replaced === 1 ? '' : 's'} safely.</div>` : ''}
+          ${json.warning ? `<div class="text-amber-300 text-xs mt-2">${json.warning}</div>` : ''}
           ${json.errors?.length ? `<div class="text-red-300 text-xs mt-1">${json.errors.length} insert error(s)</div>` : ''}
-          <div class="text-gray-500 text-xs mt-2">Closing in 3 seconds…</div>
+          <div class="text-gray-500 text-xs mt-2">${zeroMatches ? 'Review the unmatched rows before continuing.' : 'Closing in 3 seconds…'}</div>
         </div>
       `;
       // Hide the upload button to prevent double-submit
       (document.getElementById('startOrdersUpload') as HTMLButtonElement).disabled = true;
       loadBatches();
-      // Auto-close after 3 seconds
-      setTimeout(() => {
-        document.getElementById('uploadModal')?.classList.add('hidden');
-        result.classList.add('hidden');
-        progress.classList.add('hidden');
-      }, 3000);
+      // Successful matches can close automatically. Keep a zero-match warning
+      // open so the admin has time to review it.
+      if (!zeroMatches) {
+        setTimeout(() => {
+          document.getElementById('uploadModal')?.classList.add('hidden');
+          result.classList.add('hidden');
+          progress.classList.add('hidden');
+        }, 3000);
+      }
     } catch (err: any) {
       progress.classList.add('hidden');
       result.classList.remove('hidden');
