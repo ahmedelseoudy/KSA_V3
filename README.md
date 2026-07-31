@@ -9,8 +9,8 @@ A database-backed supplier CRM that replaces the old Excel/ZIP workflow. Built w
 | Module | What it does |
 |---|---|
 | **Admin Dashboard** | Overview cards: orders, revenue, fulfillment % |
-| **Companies** | Invite supplier companies; system auto-creates their Supabase auth user |
-| **Products** | Bulk XLSX upload or single-item add |
+| **Companies** | Manage supplier details, portal users, invitations, and CC recipients |
+| **Products** | Bulk XLSX/CSV upload, single-item add, editing, summaries, and company linking |
 | **Orders** | Upload Amazon order file → auto-match by barcode → grouped availability requests |
 | **Availability** | Cross-company pivot; download "unavailable items" as XLSX |
 | **Purchase Orders** | Auto-generated per company; emailed via Resend |
@@ -25,14 +25,14 @@ A database-backed supplier CRM that replaces the old Excel/ZIP workflow. Built w
 | Layer | Technology |
 |---|---|
 | Framework | [Astro 4](https://astro.build) (SSR / standalone Node) |
-| UI | [React 18](https://react.dev) islands + [Tailwind CSS 3](https://tailwindcss.com) |
+| UI | Astro pages with browser-side TypeScript + [Tailwind CSS 3](https://tailwindcss.com) |
 | Database / Auth | [Supabase](https://supabase.com) (Postgres + Row Level Security) |
-| Email | [Resend](https://resend.com) via Supabase Edge Functions |
-
-All monetary values are stored and displayed as Saudi riyals (`SAR`) using `en-SA` formatting. Currency labels are presentation-only; the application does not perform exchange-rate conversion.
+| Email | [Resend](https://resend.com) via server-side API routes and delivery webhooks |
 | Charting | [Chart.js 4](https://www.chartjs.org) |
 | Excel I/O | [xlsx](https://sheetjs.com) + [xlsx-js-style](https://github.com/gitbrent/xlsx-js-style) |
 | Deployment | [Render.com](https://render.com) (Web Service, Node 20) |
+
+All monetary values are stored and displayed as Saudi riyals (`SAR`) using `en-SA` formatting. Currency labels are presentation-only; the application does not perform exchange-rate conversion.
 
 ---
 
@@ -62,6 +62,10 @@ npm run dev
 ```
 
 The app will be available at **http://localhost:4321**.
+
+### Company and product setup
+
+Bulk product uploads resolve companies by exact name and automatically create missing companies as active records. These automatically created records contain only the company name; add email and contact details later from **Companies**. Editing an email updates contact data but does not create a login or send an invite. For a company without a linked portal user, a superadmin uses **Create portal user** to provision access and send the invite; **Resend invite** is used afterward. Additional company emails are CC recipients, not separate logins.
 
 ---
 
