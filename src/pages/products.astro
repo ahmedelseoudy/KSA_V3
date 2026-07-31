@@ -47,7 +47,7 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
       <StatCard label="Total Products" valueId="totalProducts" valueClass="text-white" />
       <StatCard label="Companies" valueId="totalCompanies" valueClass="text-white" />
       <StatCard label="Avg Price/Box (SAR)" valueId="avgPrice" valueClass="text-white" />
-      <StatCard label="Last Upload" valueId="lastUpload" valueClass="text-white" />
+      <StatCard label="Last Product Update" valueId="lastUpload" valueClass="text-white" />
     </div>
 
     <!-- Products Table -->
@@ -115,7 +115,7 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
     <!-- Add Product Modal -->
     <div id="addProductModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center">
       <div class="bg-gray-900 border border-gray-800 rounded-2xl shadow-modal p-6 w-full max-w-lg mx-4">
-        <h2 class="text-lg font-semibold text-white mb-4">Add Product</h2>
+        <h2 id="productModalTitle" class="text-lg font-semibold text-white mb-4">Add Product</h2>
         <form id="addProductForm" class="space-y-4">
           <div class="grid grid-cols-2 gap-4">
             <div>
@@ -153,7 +153,7 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
           </div>
           <div class="flex justify-end gap-3 pt-2">
             <button type="button" id="closeAddModal" class="btn btn-secondary btn-md">Cancel</button>
-            <button type="submit" class="btn btn-primary btn-md">Add Product</button>
+            <button id="productSubmitBtn" type="submit" class="btn btn-primary btn-md">Add Product</button>
           </div>
         </form>
       </div>
@@ -169,6 +169,20 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
   const pageSize = 50;
   let totalProducts = 0;
   let selectedFile: File | null = null;
+  let editingProductId: string | null = null;
+
+  function escapeHtml(value: unknown): string {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function formatLastUpdate(value: string | null): string {
+    return value ? new Date(value).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+  }
 
   // Load companies for filter and form
   async function loadCompanies() {
@@ -179,7 +193,7 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
     const filterSelect = document.getElementById('companyFilter') as HTMLSelectElement;
     const formSelect = document.querySelector('#addProductForm select[name="company_id"]') as HTMLSelectElement;
     
-    const options = (data || []).map((c: any) => `<option value="${c.id}">${c.name}</option>`).join('');
+    const options = (data || []).map((c: any) => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)}</option>`).join('');
     if (filterSelect) filterSelect.innerHTML = `<option value="">All Companies</option>${options}`;
     if (formSelect) formSelect.innerHTML = `<option value="">Select company...</option>${options}`;
   }
@@ -198,9 +212,15 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
 
     const resp = await fetch(`/api/products?${params}`);
     if (!resp.ok) return;
-    const { data, count } = await resp.json();
+    const { data, count, summary } = await resp.json();
     
     totalProducts = count || 0;
+    const companies = document.getElementById('totalCompanies');
+    const avgPrice = document.getElementById('avgPrice');
+    const lastUpload = document.getElementById('lastUpload');
+    if (companies) companies.textContent = String(summary?.companies || 0);
+    if (avgPrice) avgPrice.textContent = formatCurrency(summary?.average_price_per_box || 0);
+    if (lastUpload) lastUpload.textContent = formatLastUpdate(summary?.last_upload || null);
     renderProducts(data || []);
     updatePagination();
   }
@@ -208,6 +228,7 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
   function renderProducts(products: any[]) {
     const tbody = document.getElementById('productsTableBody');
     if (!tbody) return;
+    (window as any).__products = products;
 
     if (products.length === 0) {
       tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-12 text-center text-gray-400 text-sm">No products found</td></tr>';
@@ -216,13 +237,14 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
 
     tbody.innerHTML = products.map(p => `
       <tr class="border-t border-gray-700/40 hover:bg-gray-800/40 transition-colors">
-        <td class="px-4 py-3 text-white font-mono text-xs">${p.barcode}</td>
-        <td class="px-4 py-3 text-gray-300 text-xs">${p.asin || '-'}</td>
-        <td class="px-4 py-3 text-white truncate max-w-xs">${p.title || '-'}</td>
-        <td class="px-4 py-3 text-gray-300">${p.company?.name || '-'}</td>
-        <td class="px-4 py-3 text-right text-white tabular-nums">${p.box_quantity}</td>
+        <td class="px-4 py-3 text-white font-mono text-xs">${escapeHtml(p.barcode)}</td>
+        <td class="px-4 py-3 text-gray-300 text-xs">${escapeHtml(p.asin || '-')}</td>
+        <td class="px-4 py-3 text-white truncate max-w-xs">${escapeHtml(p.title || '-')}</td>
+        <td class="px-4 py-3 text-gray-300">${escapeHtml(p.company?.name || '-')}</td>
+        <td class="px-4 py-3 text-right text-white tabular-nums">${Number(p.box_quantity || 0)}</td>
         <td class="px-4 py-3 text-right text-white tabular-nums">${formatCurrency(p.price_per_box)}</td>
         <td class="px-4 py-3 text-center">
+          <button onclick="window.editProduct('${p.id}')" class="inline-flex items-center justify-center px-2.5 py-1.5 mr-1 text-xs font-medium rounded-lg text-cyan-300 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 transition-colors">Edit</button>
           <button onclick="window.deleteProduct('${p.id}')" class="inline-flex items-center justify-center px-2.5 py-1.5 text-xs font-medium rounded-lg text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 transition-colors">Delete</button>
         </td>
       </tr>
@@ -296,7 +318,7 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
       const products = rows.map(row => {
         const barcode = String(row['barcode'] || row['Barcode'] || row['EAN'] || row['ean'] || row['product_code'] || '').trim();
         const company = String(row['company'] || row['Company'] || row['supplier'] || row['Supplier'] || row['manufacturer'] || '').trim();
-        const boxQty = parseInt(row['boxes'] || row['Boxes'] || row['box_quantity'] || row['units'] || row['pack_size'] || '1');
+        const boxQty = Number(row['boxes'] ?? row['Boxes'] ?? row['box_qty'] ?? row['Box_Qty'] ?? row['box_quantity'] ?? row['units'] ?? row['pack_size'] ?? '');
         const price = parseCurrencyInput(row['price'] || row['Price'] || row['price_per_box'] || row['cost'] || row['unit_price'] || '0');
         const asin = String(row['asin'] || row['ASIN'] || '').trim();
         const title = String(row['title'] || row['Title'] || row['name'] || row['Name'] || row['description'] || '').trim();
@@ -320,7 +342,7 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
 
       if (resp.ok) {
         resultDiv.className = 'mb-4 p-3 rounded-lg text-sm bg-green-500/10 text-green-300 ring-1 ring-inset ring-green-500/30';
-        resultDiv.innerHTML = `<p class="font-semibold">✓ Upload complete! ${result.created} products saved.</p>${result.errors?.length ? `<p class="text-yellow-300 mt-1 text-xs">Warnings: ${result.errors.join(', ')}</p>` : ''}<p class="text-green-400/60 text-xs mt-2">Closing in 3 seconds…</p>`;
+        resultDiv.innerHTML = `<p class="font-semibold">✓ Upload complete! ${result.created || 0} new, ${result.updated || 0} updated.</p>${result.errors?.length ? `<p class="text-yellow-300 mt-1 text-xs">Warnings: ${escapeHtml(result.errors.join(' | '))}</p>` : ''}<p class="text-green-400/60 text-xs mt-2">Closing in 3 seconds…</p>`;
         resultDiv.classList.remove('hidden');
         progressDiv.classList.add('hidden');
         loadProducts();
@@ -332,7 +354,7 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
         }, 3000);
       } else {
         resultDiv.className = 'mb-4 p-3 rounded-lg text-sm bg-red-500/10 text-red-300 ring-1 ring-inset ring-red-500/30';
-        resultDiv.innerHTML = `<p>Error: ${result.error}</p>`;
+        resultDiv.innerHTML = `<p>Error: ${escapeHtml(result.error || 'Upload failed')}</p>`;
       }
       resultDiv.classList.remove('hidden');
       loadProducts();
@@ -340,18 +362,44 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
     } catch (err: any) {
       document.getElementById('uploadBar')!.style.width = '0%';
       resultDiv.className = 'mb-4 p-3 rounded-lg text-sm bg-red-500/10 text-red-300 ring-1 ring-inset ring-red-500/30';
-      resultDiv.innerHTML = `<p>Error: ${err.message}</p>`;
+      resultDiv.innerHTML = `<p>Error: ${escapeHtml(err.message)}</p>`;
       resultDiv.classList.remove('hidden');
     }
   });
 
   // Add product modal
+  function setProductForm(product: any | null) {
+    const form = document.getElementById('addProductForm') as HTMLFormElement;
+    const title = document.getElementById('productModalTitle');
+    const submit = document.getElementById('productSubmitBtn');
+    if (!form || !title || !submit) return;
+    editingProductId = product?.id || null;
+    title.textContent = editingProductId ? 'Edit Product' : 'Add Product';
+    submit.textContent = editingProductId ? 'Save Changes' : 'Add Product';
+    (form.elements.namedItem('barcode') as HTMLInputElement).value = product?.barcode || '';
+    (form.elements.namedItem('asin') as HTMLInputElement).value = product?.asin || '';
+    (form.elements.namedItem('title') as HTMLInputElement).value = product?.title || '';
+    (form.elements.namedItem('company_id') as HTMLSelectElement).value = product?.company_id || '';
+    (form.elements.namedItem('box_quantity') as HTMLInputElement).value = String(product?.box_quantity || 1);
+    (form.elements.namedItem('price_per_box') as HTMLInputElement).value = String(product?.price_per_box ?? 0);
+    (form.elements.namedItem('category') as HTMLInputElement).value = product?.category || '';
+  }
+
   document.getElementById('addProductBtn')?.addEventListener('click', () => {
+    setProductForm(null);
     document.getElementById('addProductModal')?.classList.remove('hidden');
   });
   document.getElementById('closeAddModal')?.addEventListener('click', () => {
     document.getElementById('addProductModal')?.classList.add('hidden');
+    editingProductId = null;
   });
+
+  (window as any).editProduct = (id: string) => {
+    const product = (window as any).__products?.find((item: any) => item.id === id);
+    if (!product) return;
+    setProductForm(product);
+    document.getElementById('addProductModal')?.classList.remove('hidden');
+  };
 
   document.getElementById('addProductForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -359,9 +407,10 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
     const formData = new FormData(form);
 
     const resp = await fetch('/api/products', {
-      method: 'POST',
+      method: editingProductId ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        ...(editingProductId ? { id: editingProductId } : {}),
         barcode: formData.get('barcode'),
         asin: formData.get('asin') || null,
         title: formData.get('title') || null,
@@ -375,6 +424,7 @@ if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
     if (resp.ok) {
       document.getElementById('addProductModal')?.classList.add('hidden');
       form.reset();
+      editingProductId = null;
       loadProducts();
     } else {
       const err = await resp.json();
