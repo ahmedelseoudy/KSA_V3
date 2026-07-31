@@ -118,6 +118,15 @@ async function appApi(pathname, options, jar, { allowFailure = false } = {}) {
   return { status: response.status, json };
 }
 
+async function appPage(pathname, jar) {
+  const startedAt = performance.now();
+  const response = await fetch(`${BASE_URL}${pathname}`, {
+    headers: { Cookie: jar.header() },
+  });
+  const text = await response.text();
+  return { status: response.status, durationMs: Math.round(performance.now() - startedAt), text };
+}
+
 async function adminLogin(jar) {
   const form = new URLSearchParams({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD });
   const response = await fetch(`${BASE_URL}/api/login`, {
@@ -294,7 +303,20 @@ let testError = null;
 
 try {
   console.log(`Lifecycle fixture ${runId}`);
-  console.log('1) Log in as admin');
+  console.log('1) Verify anonymous API denial, then log in as admin');
+  for (const pathname of [
+    '/api/orders',
+    '/api/companies',
+    '/api/products',
+    '/api/order-items?batch_id=00000000-0000-0000-0000-000000000000',
+    '/api/availability',
+    '/api/purchase-orders',
+    '/api/analytics',
+    '/api/notifications',
+  ]) {
+    const response = await fetch(`${BASE_URL}${pathname}`);
+    assert.equal(response.status, 401, `anonymous ${pathname} returned ${response.status}`);
+  }
   await adminLogin(jar);
 
   console.log('2) Create two no-email companies and four products');
@@ -353,6 +375,11 @@ try {
     { saved: upload.saved, matched: upload.matched, missing: upload.missing },
     { saved: 4, matched: 4, missing: 0 }
   );
+  const rawOrderItems = await supabaseRequest(
+    `/rest/v1/order_items?select=amazon_cost&batch_id=eq.${encodeURIComponent(batch.id)}`
+  );
+  const rawAmazonCost = rawOrderItems.reduce((sum, row) => sum + Number(row.amazon_cost || 0), 0);
+  assert.equal(rawAmazonCost, 406);
 
   console.log('4) Generate availability and create complete/partial response states');
   const { json: generatedAvailability } = await appApi('/api/availability', {
@@ -378,6 +405,21 @@ try {
     jar
   );
   assert.equal(completeDetails.data.length, 2);
+  const excessiveQuantity = completeDetails.data[0];
+  const { status: excessiveQuantityStatus, json: excessiveQuantityResult } = await appApi('/api/availability', {
+    method: 'POST',
+    body: JSON.stringify({
+      action: 'respond',
+      availability_order_id: completeOrder.id,
+      responses: [{
+        id: excessiveQuantity.id,
+        is_available: true,
+        available_qty: Number(excessiveQuantity.order_item?.order_qty || 0) + 1,
+      }],
+    }),
+  }, jar, { allowFailure: true });
+  assert.equal(excessiveQuantityStatus, 400);
+  assert.match(excessiveQuantityResult.error, /cannot exceed requested quantity/i);
   await appApi('/api/availability', {
     method: 'POST',
     body: JSON.stringify({
@@ -514,6 +556,13 @@ try {
   assert.equal(analytics.company_performance.count, 2);
   assert.equal(analytics.company_performance.data.length, 1);
   assert.equal(analytics.company_performance.pages, 2);
+  const poItemsForAnalytics = await supabaseRequest(
+    `/rest/v1/purchase_order_items?select=total_price&purchase_order_id=in.(${generatedPurchaseOrderIds.join(',')})`
+  );
+  const expectedOrderedValue = poItemsForAnalytics.reduce((sum, row) => sum + Number(row.total_price || 0), 0);
+  assert.equal(Number(analytics.summary.ordered_value), Number(expectedOrderedValue.toFixed(2)));
+  assert.notEqual(Number(analytics.summary.ordered_value), rawAmazonCost);
+  console.log(`Analytics reconciliation: raw Amazon cost ${rawAmazonCost}; ordered supplier value ${expectedOrderedValue.toFixed(2)}`);
 
   const { status: duplicateStatus, json: duplicates } = await appApi('/api/purchase-orders', {
     method: 'POST',
@@ -595,6 +644,12 @@ try {
   await Promise.all(companyUsers.map((user, index) =>
     userLogin(companyJars[index], user.email, user.password)
   ));
+
+  const portalPage = await appPage('/portal', companyJars[0]);
+  assert.equal(portalPage.status, 200);
+  assert.ok(portalPage.text.includes('Welcome to your Portal'));
+  assert.ok(portalPage.durationMs < 1000, `cold company portal response exceeded 1 second (${portalPage.durationMs} ms)`);
+  console.log(`Cold company portal response: ${portalPage.durationMs} ms`);
 
   for (const [index, companyJar] of companyJars.entries()) {
     const ownCompany = companies[index];

@@ -268,13 +268,50 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       return new Response(JSON.stringify({ error: 'responses array required' }), { status: 400 });
     }
 
+    const responseIds = responses.map((response) => response?.id).filter(Boolean);
+    if (responseIds.length !== responses.length || new Set(responseIds).size !== responseIds.length) {
+      return new Response(JSON.stringify({ error: 'Each response must have a unique id' }), { status: 400 });
+    }
+
+    const { data: responseRows, error: responseRowsError } = await supabase
+      .from('availability_responses')
+      .select('id, availability_order_id, order_item:order_items(order_qty)')
+      .eq('availability_order_id', body.availability_order_id || '')
+      .in('id', responseIds);
+    if (responseRowsError) {
+      return new Response(JSON.stringify({ error: responseRowsError.message }), { status: 500 });
+    }
+    if ((responseRows || []).length !== responses.length) {
+      return new Response(JSON.stringify({ error: 'One or more responses do not belong to this availability request' }), { status: 400 });
+    }
+
+    const requestedQtyByResponseId = new Map(
+      (responseRows || []).map((row: any) => [row.id, Number(row.order_item?.order_qty || 0)])
+    );
+    for (const response of responses) {
+      const rawAvailableQty = response.available_qty as unknown;
+      if (rawAvailableQty === undefined || rawAvailableQty === null || rawAvailableQty === '') continue;
+      const availableQty = Number(rawAvailableQty);
+      const requestedQty = requestedQtyByResponseId.get(response.id) ?? 0;
+      if (!Number.isFinite(availableQty) || !Number.isInteger(availableQty) || availableQty < 0) {
+        return new Response(JSON.stringify({ error: `Available quantity for response ${response.id} must be a non-negative whole number` }), { status: 400 });
+      }
+      if (availableQty > requestedQty) {
+        return new Response(JSON.stringify({ error: `Available quantity cannot exceed requested quantity (${requestedQty})` }), { status: 400 });
+      }
+    }
+
     let updated = 0;
     for (const resp of responses) {
+      const rawAvailableQty = resp.available_qty as unknown;
+      const availableQty = rawAvailableQty === undefined || rawAvailableQty === null || rawAvailableQty === ''
+        ? null
+        : Number(rawAvailableQty);
       const { error } = await supabase
         .from('availability_responses')
         .update({
           is_available: resp.is_available,
-          available_qty: resp.available_qty || null,
+          available_qty: availableQty,
           comment: resp.comment || null,
           responded_at: new Date().toISOString(),
           responded_by: user.id,
