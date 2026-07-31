@@ -65,6 +65,24 @@ The app will be available at **http://localhost:4321**.
 
 ---
 
+## ✅ Regression Testing
+
+The E2E fixtures use disposable database records and remove them in `finally`. They require a running app, `ADMIN_PASSWORD`, and the configured Supabase values (which may come from the ignored `.env` file):
+
+```sh
+BASE_URL=http://localhost:4321 ADMIN_PASSWORD=... npm run test:e2e:lifecycle
+BASE_URL=http://localhost:4321 ADMIN_PASSWORD=... npm run test:e2e:ingestion
+BASE_URL=http://localhost:4321 ADMIN_PASSWORD=... npm run test:e2e:upload-ui
+```
+
+- `lifecycle` verifies the complete admin-to-company lifecycle and two-company RLS/API isolation.
+- `ingestion` verifies malformed input, zero matches, duplicate/concurrent retries, transactional rollback, downstream locking, and 5,000-row performance.
+- `upload-ui` uses headless Chrome to verify corrupt, empty, and zero-match spreadsheet feedback.
+
+The ingestion performance fixture enforces the PRD target of less than three seconds for both a 5,000-row first import and an identical retry.
+
+---
+
 ## 🔑 Environment Variables
 
 Create a `.env` file in the project root:
