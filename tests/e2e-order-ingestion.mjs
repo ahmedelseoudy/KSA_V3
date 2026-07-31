@@ -244,9 +244,9 @@ try {
   assert.equal(await exactCount('order_items', { batch_id: `eq.${edgeBatch.id}` }), 100);
 
   console.log('5) Prove failed replacement rolls back and downstream batches are locked');
-  const failedRpc = await directRpc('replace_order_batch_items', {
+  const failedRpc = await directRpc('match_and_replace_order_batch_items', {
     p_batch_id: edgeBatch.id,
-    p_items: [{ barcode, order_qty: 1, match_status: 'invalid-status' }],
+    p_items: [{ barcode, order_qty: 1, amazon_cost: '999999999999999999999' }],
   }, jar.get('sb-access-token'));
   assert.ok(failedRpc.status >= 400);
   assert.equal(await exactCount('order_items', { batch_id: `eq.${edgeBatch.id}` }), 100);
@@ -287,6 +287,8 @@ try {
   assert.equal(scaleRetry.json.replaced, 5000);
   assert.equal(await exactCount('order_items', { batch_id: `eq.${scaleBatch.id}` }), 5000);
   console.log(`5,000 rows: first ${firstDurationMs} ms; replacement ${retryDurationMs} ms`);
+  assert.ok(firstDurationMs < 3000, `first 5,000-row import exceeded 3 seconds (${firstDurationMs} ms)`);
+  assert.ok(retryDurationMs < 3000, `5,000-row retry exceeded 3 seconds (${retryDurationMs} ms)`);
 
   console.log('E2E ORDER INGESTION SUCCESS');
 } catch (error) {
