@@ -107,7 +107,9 @@ const isSuper = profile.role === 'super_admin';
       return;
     }
 
-    grid.innerHTML = companies.map((c: any) => `
+    grid.innerHTML = companies.map((c: any) => {
+      const displayEmail = c.email || c.linked_user_email || '';
+      return `
       <div class="bg-gray-800/60 rounded-xl p-5 border border-gray-700/60 shadow-card hover:border-purple-500/50 transition-colors">
         <div class="flex justify-between items-start mb-3">
           <h3 class="text-lg font-semibold text-white">${c.name}</h3>
@@ -117,7 +119,7 @@ const isSuper = profile.role === 'super_admin';
             'bg-gray-500/10 text-gray-300 ring-1 ring-inset ring-gray-500/30'
           }">${c.status}</span>
         </div>
-        ${c.email ? `<p class="text-sm text-gray-400 mb-1">📧 ${c.email}</p>` : ''}
+        ${displayEmail ? `<p class="text-sm text-gray-400 mb-1">📧 ${displayEmail}</p>` : ''}
         ${(c.additional_emails && c.additional_emails.length) ? `<p class="text-xs text-gray-500 mb-1">+ ${c.additional_emails.length} cc</p>` : ''}
         ${c.contact_person ? `<p class="text-sm text-gray-400 mb-1">👤 ${c.contact_person}</p>` : ''}
         ${c.phone ? `<p class="text-sm text-gray-400 mb-1">📞 ${c.phone}</p>` : ''}
@@ -134,7 +136,8 @@ const isSuper = profile.role === 'super_admin';
             class="inline-flex items-center justify-center px-2.5 py-1.5 text-xs font-medium rounded-lg text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 transition-colors ml-auto">Delete</button>
         </div>
       </div>
-    `).join('');
+    `;
+    }).join('');
   }
 
   // Modal handling
@@ -255,7 +258,7 @@ const isSuper = profile.role === 'super_admin';
     const form = document.getElementById('companyForm') as HTMLFormElement;
     (form.querySelector('input[name="id"]') as HTMLInputElement).value = id;
     (form.querySelector('input[name="name"]') as HTMLInputElement).value = company.name || '';
-    (form.querySelector('input[name="email"]') as HTMLInputElement).value = company.email || '';
+    (form.querySelector('input[name="email"]') as HTMLInputElement).value = company.email || company.linked_user_email || '';
     (form.querySelector('input[name="contact_person"]') as HTMLInputElement).value = company.contact_person || '';
     (form.querySelector('input[name="phone"]') as HTMLInputElement).value = company.phone || '';
     (form.querySelector('textarea[name="address"]') as HTMLTextAreaElement).value = company.address || '';

@@ -28,7 +28,18 @@ export const GET: APIRoute = async ({ request, cookies }) => {
   const { data, error, count } = await query;
   if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500 });
 
-  return new Response(JSON.stringify({ data, count }), {
+  const userIds = (data || []).map((company: any) => company.user_id).filter(Boolean);
+  const { data: profiles, error: profileError } = userIds.length > 0
+    ? await supabase.from('users_profile').select('id, email').in('id', userIds)
+    : { data: [], error: null };
+  if (profileError) return new Response(JSON.stringify({ error: profileError.message }), { status: 500 });
+  const profileEmails = new Map((profiles || []).map((profile: any) => [profile.id, profile.email]));
+  const enrichedData = (data || []).map((company: any) => ({
+    ...company,
+    linked_user_email: company.user_id ? profileEmails.get(company.user_id) || null : null,
+  }));
+
+  return new Response(JSON.stringify({ data: enrichedData, count }), {
     headers: { 'Content-Type': 'application/json' },
   });
 };
