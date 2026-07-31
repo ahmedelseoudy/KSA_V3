@@ -148,8 +148,17 @@ export interface Notification {
   type: 'availability_request' | 'po_sent' | 'delivery_reminder' | 'system' | 'order_completed';
   subject: string;
   body: string | null;
-  status: 'pending' | 'sent' | 'failed' | 'read';
+  status: 'pending' | 'sent' | 'delivered' | 'delivery_delayed' | 'failed' | 'bounced' | 'suppressed' | 'complained' | 'read';
   sent_at: string | null;
+  provider_message_id: string | null;
+  recipients: string[];
+  error_message: string | null;
+  last_event_at: string | null;
+  retry_of: string | null;
+  retry_count: number;
+  retryable: boolean;
+  context: Record<string, unknown>;
+  updated_at: string;
   created_at: string;
 }
 

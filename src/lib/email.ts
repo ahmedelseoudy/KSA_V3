@@ -9,6 +9,8 @@ export interface SendEmailInput {
   subject: string;
   html: string;
   reply_to?: string;
+  idempotency_key?: string;
+  tags?: Array<{ name: string; value: string }>;
 }
 
 export interface SendEmailResult {
@@ -33,6 +35,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
       headers: {
         Authorization: `Bearer ${RESEND_API_KEY}`,
         'Content-Type': 'application/json',
+        ...(input.idempotency_key ? { 'Idempotency-Key': input.idempotency_key } : {}),
       },
       body: JSON.stringify({
         from: RESEND_FROM_EMAIL,
@@ -40,6 +43,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
         subject: input.subject,
         html: input.html,
         reply_to: input.reply_to,
+        tags: input.tags,
       }),
     });
 

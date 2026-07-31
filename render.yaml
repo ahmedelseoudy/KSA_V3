@@ -32,3 +32,5 @@ services:
         sync: false
       - key: RESEND_FROM_EMAIL
         value: "KSA CRM <onboarding@resend.dev>"
+      - key: RESEND_WEBHOOK_SECRET
+        sync: false

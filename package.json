@@ -11,6 +11,8 @@
     "start": "node ./dist/server/entry.mjs",
     "build": "astro build",
     "preview": "astro preview",
+    "test:webhook": "TS_NODE_TRANSPILE_ONLY=true node --loader ts-node/esm tests/resend-webhook-fixture.mts",
+    "test:e2e:webhook": "node tests/e2e-email-webhook.mjs",
     "test:e2e:lifecycle": "node tests/e2e-lifecycle-fixture.mjs",
     "astro": "astro"
   },

@@ -81,6 +81,7 @@ PUBLIC_APP_URL=http://localhost:4321
 # Email via Resend
 RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxx
 RESEND_FROM_EMAIL=KSA CRM <onboarding@resend.dev>
+RESEND_WEBHOOK_SECRET=whsec_xxxxxxxxxxxxxxxxxxxx
 ```
 
 > **Never commit `.env`** — it is listed in `.gitignore`.
@@ -184,7 +185,17 @@ Steps
 
 Troubleshooting
 - If Ahmed has no portal user yet, go to Companies → Ahmed → Resend Invite (or use the new admin API to provision) to send the setup email.
-- If emails don’t arrive, verify `RESEND_API_KEY` and check `/api/*` responses or server logs.
+- If emails don’t arrive, open Admin → Email Delivery to distinguish API acceptance from delivery, bounce, suppression, or complaint events.
+
+### Resend delivery webhooks
+
+After deploying, add a Resend webhook whose endpoint is:
+
+```text
+https://ksa-v3.onrender.com/api/webhooks/resend
+```
+
+Subscribe it to `email.sent`, `email.delivered`, `email.delivery_delayed`, `email.failed`, `email.bounced`, `email.suppressed`, and `email.complained`. Copy the webhook signing secret into Render as `RESEND_WEBHOOK_SECRET`. The endpoint verifies the raw Svix signature, rejects stale/replayed-invalid payloads, and deduplicates valid event IDs. Do not reuse the local development signing secret in production.
 
 ---
 
@@ -241,6 +252,7 @@ In **Environment → Environment Variables**, add:
 | `PUBLIC_APP_URL` | `https://ksa-crm.onrender.com` (your Render URL) |
 | `RESEND_API_KEY` | Your Resend API key |
 | `RESEND_FROM_EMAIL` | `KSA CRM <onboarding@resend.dev>` |
+| `RESEND_WEBHOOK_SECRET` | Signing secret for `/api/webhooks/resend` |
 
 ### Step 4 — Deploy
 

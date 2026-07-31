@@ -1,14 +1,17 @@
-// Notification dispatch helpers. Used by availability + PO endpoints.
-// Each helper:
-//   1. Looks up company emails (primary + additional_emails)
-//   2. Renders the template
-//   3. Sends via Resend
-//   4. Inserts a notifications row with the resulting status
+// Transactional notification helpers with Resend delivery tracking.
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { sendEmail, PUBLIC_APP_URL } from './email';
 import { availabilityRequestEmail, purchaseOrderEmail, deliveryUpdateEmail } from './email-templates';
 import { formatCurrency } from '../utils/currency';
+import { supabaseAdmin } from './supabase';
+
+export type NotificationType =
+  | 'availability_request'
+  | 'po_sent'
+  | 'delivery_reminder'
+  | 'order_completed'
+  | 'system';
 
 interface CompanyContact {
   id: string;
@@ -30,38 +33,101 @@ async function getCompanyContact(
   return (data as CompanyContact) || null;
 }
 
-function recipientList(c: CompanyContact): string[] {
-  const list = [c.email, ...(c.additional_emails || [])].filter(Boolean) as string[];
-  return Array.from(new Set(list.map((e) => e.toLowerCase())));
-}
-
-async function recordNotification(
-  supabase: SupabaseClient,
-  opts: {
-    company_id: string;
-    recipient_id: string | null;
-    type: 'availability_request' | 'po_sent' | 'delivery_reminder' | 'order_completed';
-    subject: string;
-    body: string;
-    sent: boolean;
-    error?: string;
-  }
-) {
-  await supabase.from('notifications').insert({
-    company_id: opts.company_id,
-    recipient_id: opts.recipient_id,
-    type: opts.type,
-    subject: opts.subject,
-    body: opts.sent ? opts.body : `[FAILED: ${opts.error}] ${opts.body}`,
-    status: opts.sent ? 'sent' : 'failed',
-    sent_at: opts.sent ? new Date().toISOString() : null,
-  });
+function recipientList(company: CompanyContact): string[] {
+  const list = [company.email, ...(company.additional_emails || [])].filter(Boolean) as string[];
+  return Array.from(new Set(list.map((email) => email.trim().toLowerCase()).filter(Boolean)));
 }
 
 export interface DispatchResult {
   company_id: string;
   sent: boolean;
   error?: string;
+  notification_id?: string;
+  provider_message_id?: string;
+}
+
+export async function sendTrackedEmail(
+  supabase: SupabaseClient,
+  opts: {
+    company_id?: string | null;
+    recipient_id?: string | null;
+    type: NotificationType;
+    recipients: string[];
+    subject: string;
+    body: string;
+    html: string;
+    context?: Record<string, unknown>;
+    retryable?: boolean;
+    retry_of?: string | null;
+  }
+): Promise<DispatchResult> {
+  const recipients = Array.from(
+    new Set(opts.recipients.map((email) => email.trim().toLowerCase()).filter(Boolean))
+  );
+  if (recipients.length === 0) {
+    return { company_id: opts.company_id || '', sent: false, error: 'No email addresses on file' };
+  }
+
+  const trackingClient = supabaseAdmin || supabase;
+  const results: Array<{ notificationId?: string; providerMessageId?: string; error?: string }> = [];
+  for (const recipient of recipients) {
+    const { data: notification, error: insertError } = await trackingClient
+      .from('notifications')
+      .insert({
+        company_id: opts.company_id || null,
+        recipient_id: opts.recipient_id || null,
+        type: opts.type,
+        subject: opts.subject,
+        body: opts.body,
+        status: 'pending',
+        recipients: [recipient],
+        context: opts.context || {},
+        retryable: opts.retryable === true,
+        retry_of: opts.retry_of || null,
+      })
+      .select('id')
+      .single();
+
+    if (insertError || !notification) {
+      results.push({ error: insertError?.message || 'Failed to create notification tracking row' });
+      continue;
+    }
+
+    const result = await sendEmail({
+      to: recipient,
+      subject: opts.subject,
+      html: opts.html,
+      idempotency_key: `notification/${notification.id}`,
+      tags: [{ name: 'notification_id', value: notification.id }],
+    });
+
+    // A fast webhook can move the row beyond pending before the API call returns.
+    // Never overwrite that asynchronous outcome with the earlier "sent" state.
+    await trackingClient.from('notifications').update({
+      provider_message_id: result.id || null,
+      status: result.ok ? 'sent' : 'failed',
+      sent_at: result.ok ? new Date().toISOString() : null,
+      error_message: result.ok ? null : result.error || 'Email provider rejected the request',
+      last_event_at: new Date().toISOString(),
+    }).eq('id', notification.id).eq('status', 'pending');
+
+    results.push({
+      notificationId: notification.id,
+      providerMessageId: result.id,
+      error: result.ok ? undefined : result.error,
+    });
+  }
+
+  const errors = results.map((result) => result.error).filter(Boolean) as string[];
+  const firstTracked = results.find((result) => result.notificationId);
+
+  return {
+    company_id: opts.company_id || '',
+    sent: results.length === recipients.length && errors.length === 0,
+    error: errors.length ? Array.from(new Set(errors)).join('; ') : undefined,
+    notification_id: firstTracked?.notificationId,
+    provider_message_id: firstTracked?.providerMessageId,
+  };
 }
 
 export async function sendAvailabilityRequestEmail(
@@ -71,16 +137,14 @@ export async function sendAvailabilityRequestEmail(
     availability_order_id: string;
     batch_name: string;
     item_count: number;
+    retry_of?: string | null;
+    recipients_override?: string[];
   }
 ): Promise<DispatchResult> {
   const company = await getCompanyContact(supabase, opts.company_id);
   if (!company) return { company_id: opts.company_id, sent: false, error: 'Company not found' };
 
-  const recipients = recipientList(company);
-  if (recipients.length === 0) {
-    return { company_id: opts.company_id, sent: false, error: 'No email addresses on file' };
-  }
-
+  const recipients = opts.recipients_override || recipientList(company);
   const portalUrl = `${PUBLIC_APP_URL}/portal/availability?focus=${opts.availability_order_id}`;
   const { subject, html } = availabilityRequestEmail({
     company_name: company.name,
@@ -89,18 +153,23 @@ export async function sendAvailabilityRequestEmail(
     portal_url: portalUrl,
   });
 
-  const result = await sendEmail({ to: recipients, subject, html });
-  await recordNotification(supabase, {
+  return sendTrackedEmail(supabase, {
     company_id: company.id,
     recipient_id: company.user_id,
     type: 'availability_request',
+    recipients,
     subject,
     body: `Sent to ${recipients.join(', ')} | ${portalUrl}`,
-    sent: result.ok,
-    error: result.error,
+    html,
+    retryable: true,
+    retry_of: opts.retry_of,
+    context: {
+      kind: 'availability_request',
+      availability_order_id: opts.availability_order_id,
+      batch_name: opts.batch_name,
+      item_count: opts.item_count,
+    },
   });
-
-  return { company_id: company.id, sent: result.ok, error: result.error };
 }
 
 export async function sendDeliveryConfirmationEmail(
@@ -112,16 +181,14 @@ export async function sendDeliveryConfirmationEmail(
     delivered_count: number;
     total_items: number;
     is_complete: boolean;
+    retry_of?: string | null;
+    recipients_override?: string[];
   }
 ): Promise<DispatchResult> {
   const company = await getCompanyContact(supabase, opts.company_id);
   if (!company) return { company_id: opts.company_id, sent: false, error: 'Company not found' };
 
-  const recipients = recipientList(company);
-  if (recipients.length === 0) {
-    return { company_id: opts.company_id, sent: false, error: 'No email addresses on file' };
-  }
-
+  const recipients = opts.recipients_override || recipientList(company);
   const portalUrl = `${PUBLIC_APP_URL}/portal/purchase-orders?focus=${opts.purchase_order_id}`;
   const { subject, html } = deliveryUpdateEmail({
     company_name: company.name,
@@ -132,18 +199,25 @@ export async function sendDeliveryConfirmationEmail(
     is_complete: opts.is_complete,
   });
 
-  const result = await sendEmail({ to: recipients, subject, html });
-  await recordNotification(supabase, {
+  return sendTrackedEmail(supabase, {
     company_id: company.id,
     recipient_id: company.user_id,
     type: opts.is_complete ? 'order_completed' : 'delivery_reminder',
+    recipients,
     subject,
     body: `Sent to ${recipients.join(', ')} | ${portalUrl}`,
-    sent: result.ok,
-    error: result.error,
+    html,
+    retryable: true,
+    retry_of: opts.retry_of,
+    context: {
+      kind: 'delivery_update',
+      purchase_order_id: opts.purchase_order_id,
+      po_number: opts.po_number,
+      delivered_count: opts.delivered_count,
+      total_items: opts.total_items,
+      is_complete: opts.is_complete,
+    },
   });
-
-  return { company_id: company.id, sent: result.ok, error: result.error };
 }
 
 export async function sendPurchaseOrderEmail(
@@ -154,36 +228,39 @@ export async function sendPurchaseOrderEmail(
     po_number: string;
     item_count: number;
     total_amount: number;
+    retry_of?: string | null;
+    recipients_override?: string[];
   }
 ): Promise<DispatchResult> {
   const company = await getCompanyContact(supabase, opts.company_id);
   if (!company) return { company_id: opts.company_id, sent: false, error: 'Company not found' };
 
-  const recipients = recipientList(company);
-  if (recipients.length === 0) {
-    return { company_id: opts.company_id, sent: false, error: 'No email addresses on file' };
-  }
-
+  const recipients = opts.recipients_override || recipientList(company);
   const portalUrl = `${PUBLIC_APP_URL}/portal/purchase-orders?focus=${opts.purchase_order_id}`;
-  const totalFormatted = formatCurrency(opts.total_amount);
   const { subject, html } = purchaseOrderEmail({
     company_name: company.name,
     po_number: opts.po_number,
-    total_amount: totalFormatted,
+    total_amount: formatCurrency(opts.total_amount),
     item_count: opts.item_count,
     portal_url: portalUrl,
   });
 
-  const result = await sendEmail({ to: recipients, subject, html });
-  await recordNotification(supabase, {
+  return sendTrackedEmail(supabase, {
     company_id: company.id,
     recipient_id: company.user_id,
     type: 'po_sent',
+    recipients,
     subject,
     body: `Sent to ${recipients.join(', ')} | ${portalUrl}`,
-    sent: result.ok,
-    error: result.error,
+    html,
+    retryable: true,
+    retry_of: opts.retry_of,
+    context: {
+      kind: 'purchase_order',
+      purchase_order_id: opts.purchase_order_id,
+      po_number: opts.po_number,
+      item_count: opts.item_count,
+      total_amount: opts.total_amount,
+    },
   });
-
-  return { company_id: company.id, sent: result.ok, error: result.error };
 }

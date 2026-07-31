@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { createAuthenticatedClient } from '../../../lib/supabase-server';
-import { sendEmail, PUBLIC_APP_URL } from '../../../lib/email';
+import { PUBLIC_APP_URL } from '../../../lib/email';
+import { sendTrackedEmail } from '../../../lib/notifications';
 import { companyInviteEmail } from '../../../lib/email-templates';
 
 export const POST: APIRoute = async ({ request, cookies }) => {
@@ -56,9 +57,19 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     new Set([company.email, ...(company.additional_emails || [])])
   ).filter(Boolean) as string[];
 
-  const emailResp = await sendEmail({ to: allRecipients, subject, html });
+  const emailResp = await sendTrackedEmail(supabase, {
+    company_id: company.id,
+    recipient_id: company.user_id,
+    type: 'system',
+    recipients: allRecipients,
+    subject,
+    html,
+    body: 'Company portal invitation sent to company contacts',
+    retryable: true,
+    context: { kind: 'company_invite' },
+  });
 
-  return new Response(JSON.stringify({ sent: emailResp.ok, error: emailResp.error, setup_url: setupUrl }), {
+  return new Response(JSON.stringify({ sent: emailResp.sent, error: emailResp.error, setup_url: setupUrl }), {
     headers: { 'Content-Type': 'application/json' },
   });
 };

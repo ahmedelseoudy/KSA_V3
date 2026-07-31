@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { createAuthenticatedClient } from '../../lib/supabase-server';
-import { sendAvailabilityRequestEmail } from '../../lib/notifications';
-import { sendEmail, PUBLIC_APP_URL } from '../../lib/email';
+import { sendAvailabilityRequestEmail, sendTrackedEmail } from '../../lib/notifications';
+import { PUBLIC_APP_URL } from '../../lib/email';
 
 // GET: List availability orders (admin) or own (company)
 export const GET: APIRoute = async ({ request, cookies }) => {
@@ -354,7 +354,15 @@ export const POST: APIRoute = async ({ request, cookies }) => {
             </p>
             <p><a href="${url}">View in dashboard</a></p>
           `;
-          await sendEmail({ to: adminEmail, subject, html });
+          await sendTrackedEmail(supabase, {
+            type: 'system',
+            recipients: [adminEmail],
+            subject,
+            html,
+            body: `Availability response submitted for ${companyName}`,
+            retryable: false,
+            context: { kind: 'availability_admin_notice', availability_order_id: body.availability_order_id },
+          });
         }
       } catch (e) {
         // swallow notification errors; do not block API success

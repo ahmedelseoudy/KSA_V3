@@ -92,6 +92,14 @@ export const NAV_ITEMS: NavItem[] = [
     accent: 'rose'
   },
   {
+    path: '/notifications',
+    label: 'Email Delivery',
+    icon: 'mail',
+    roles: ['admin', 'super_admin'],
+    group: 'Administration',
+    accent: 'rose'
+  },
+  {
     path: '/portal',
     label: 'My Dashboard',
     icon: 'home',

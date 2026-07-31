@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { createAuthenticatedClient } from '../../../lib/supabase-server';
-import { sendEmail, PUBLIC_APP_URL } from '../../../lib/email';
+import { PUBLIC_APP_URL } from '../../../lib/email';
+import { sendTrackedEmail } from '../../../lib/notifications';
 import { companyInviteEmail } from '../../../lib/email-templates';
 
 export const POST: APIRoute = async ({ request, cookies }) => {
@@ -58,9 +59,19 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   const setupUrl = `${PUBLIC_APP_URL}/auth/setup?token=${encodeURIComponent(setupToken)}`;
   const { subject, html } = companyInviteEmail({ company_name: company.name, setup_url: setupUrl });
   const allRecipients = Array.from(new Set([primaryEmail, ...((company as any).additional_emails || [])])).filter(Boolean) as string[];
-  const sendResp = await sendEmail({ to: allRecipients, subject, html });
+  const sendResp = await sendTrackedEmail(supabase, {
+    company_id: company.id,
+    recipient_id: company.user_id,
+    type: 'system',
+    recipients: allRecipients,
+    subject,
+    html,
+    body: 'Company portal invitation sent to company contacts',
+    retryable: true,
+    context: { kind: 'company_invite' },
+  });
 
-  return new Response(JSON.stringify({ success: true, invited: sendResp.ok, error: sendResp.error, setup_url: setupUrl }), {
+  return new Response(JSON.stringify({ success: true, invited: sendResp.sent, error: sendResp.error, setup_url: setupUrl }), {
     headers: { 'Content-Type': 'application/json' },
   });
 };

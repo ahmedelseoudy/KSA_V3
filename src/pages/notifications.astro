@@ -1,0 +1,215 @@
+---
+import Layout from '../layouts/Layout.astro';
+import PageHeader from '../components/ui/PageHeader.astro';
+import StatCard from '../components/ui/StatCard.astro';
+
+const user = Astro.locals.user;
+const profile = (user as any)?.profile;
+if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
+  return Astro.redirect('/dashboard');
+}
+---
+
+<Layout title="Email Delivery - KSA CRM">
+  <div class="max-w-7xl mx-auto">
+    <PageHeader title="Email Delivery" subtitle="Monitor accepted, delivered, delayed, and failed transactional emails">
+      <button slot="actions" id="refreshNotifications" class="btn btn-secondary btn-md">Refresh</button>
+    </PageHeader>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+      <StatCard label="Total Tracked" valueId="totalTracked" />
+      <StatCard label="Delivered" valueId="totalDelivered" valueClass="text-green-400" />
+      <StatCard label="In Flight" valueId="totalInFlight" valueClass="text-blue-400" />
+      <StatCard label="Needs Attention" valueId="totalAttention" valueClass="text-red-400" />
+    </div>
+
+    <div class="card p-4 mb-5 flex flex-wrap items-end gap-4">
+      <label class="text-sm text-gray-300">
+        <span class="block text-xs uppercase tracking-wide text-gray-500 mb-1">Status</span>
+        <select id="notificationStatus" class="input min-w-48">
+          <option value="all">All statuses</option>
+          <option value="attention">Needs attention</option>
+          <option value="delivered">Delivered</option>
+          <option value="sent">Accepted by Resend</option>
+          <option value="delivery_delayed">Delivery delayed</option>
+          <option value="bounced">Bounced</option>
+          <option value="failed">Failed</option>
+          <option value="suppressed">Suppressed</option>
+          <option value="complained">Spam complaint</option>
+        </select>
+      </label>
+      <p class="text-xs text-gray-500 max-w-2xl">
+        “Accepted” means Resend received the API request. “Delivered” means the recipient mail server accepted it.
+      </p>
+    </div>
+
+    <div id="notificationFeedback" class="hidden mb-4 rounded-xl border p-3 text-sm"></div>
+
+    <div class="card overflow-hidden">
+      <div id="notificationsLoading" class="p-10 text-center text-gray-500">Loading email activity…</div>
+      <div id="notificationsTableWrap" class="hidden overflow-x-auto">
+        <table class="w-full min-w-[920px] text-sm">
+          <thead>
+            <tr>
+              <th class="table-header-cell text-left">Created</th>
+              <th class="table-header-cell text-left">Company / recipients</th>
+              <th class="table-header-cell text-left">Message</th>
+              <th class="table-header-cell text-left">Status</th>
+              <th class="table-header-cell text-left">Detail</th>
+              <th class="table-header-cell text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody id="notificationsBody"></tbody>
+        </table>
+      </div>
+      <div id="notificationsEmpty" class="hidden p-10 text-center text-gray-500">No email notifications match this filter.</div>
+      <div class="border-t border-gray-700/60 p-4 flex items-center justify-between gap-3">
+        <p id="notificationPageLabel" class="text-xs text-gray-500"></p>
+        <div class="flex gap-2">
+          <button id="notificationsPrev" class="btn btn-secondary btn-sm">Previous</button>
+          <button id="notificationsNext" class="btn btn-secondary btn-sm">Next</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  let page = 1;
+  const pageSize = 25;
+  let totalRows = 0;
+
+  function escapeHtml(value: unknown): string {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function statusBadge(status: string, tracked: boolean): string {
+    const variants: Record<string, string> = {
+      delivered: 'badge badge-success',
+      sent: 'badge badge-info',
+      pending: 'badge badge-pending',
+      delivery_delayed: 'badge badge-warning',
+      failed: 'badge badge-danger',
+      bounced: 'badge badge-danger',
+      suppressed: 'badge badge-danger',
+      complained: 'badge badge-danger',
+    };
+    const label = status === 'sent' && !tracked ? 'sent (legacy)' : status.replace(/_/g, ' ');
+    const variant = status === 'sent' && !tracked ? 'badge badge-pending' : variants[status] || 'badge badge-pending';
+    return `<span class="${variant}">${escapeHtml(label)}</span>`;
+  }
+
+  function formatDate(value: string | null): string {
+    if (!value) return '—';
+    return new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  }
+
+  function showFeedback(message: string, kind: 'success' | 'error') {
+    const element = document.getElementById('notificationFeedback')!;
+    element.textContent = message;
+    element.className = `mb-4 rounded-xl border p-3 text-sm ${kind === 'success'
+      ? 'border-green-500/30 bg-green-500/10 text-green-300'
+      : 'border-red-500/30 bg-red-500/10 text-red-300'}`;
+  }
+
+  function renderRows(rows: any[]) {
+    const body = document.getElementById('notificationsBody')!;
+    const failureStatuses = new Set(['failed', 'bounced', 'suppressed', 'complained']);
+    body.innerHTML = rows.map((row) => {
+      const recipients = Array.isArray(row.recipients) ? row.recipients.join(', ') : '—';
+      const canRetry = row.retryable && failureStatuses.has(row.status);
+      return `<tr class="border-t border-gray-700/40 align-top">
+        <td class="px-4 py-3 whitespace-nowrap text-gray-300">${escapeHtml(formatDate(row.created_at))}</td>
+        <td class="px-4 py-3">
+          <div class="font-medium text-white">${escapeHtml(row.company?.name || 'System')}</div>
+          <div class="mt-1 max-w-60 break-all text-xs text-gray-500">${escapeHtml(recipients)}</div>
+        </td>
+        <td class="px-4 py-3">
+          <div class="max-w-72 font-medium text-gray-100">${escapeHtml(row.subject)}</div>
+          <div class="mt-1 text-xs text-gray-500">${escapeHtml(String(row.type || '').replace(/_/g, ' '))}</div>
+        </td>
+        <td class="px-4 py-3">${statusBadge(row.status, Boolean(row.provider_message_id))}</td>
+        <td class="px-4 py-3 max-w-80 text-xs ${row.error_message ? 'text-red-300' : 'text-gray-500'}">
+          ${escapeHtml(row.error_message || (row.provider_message_id ? `Resend ID: ${row.provider_message_id}` : 'Awaiting provider response'))}
+        </td>
+        <td class="px-4 py-3 text-right">
+          ${canRetry
+              ? `<button class="retry-notification btn btn-soft-danger btn-sm" data-id="${escapeHtml(row.id)}" data-recipient="${escapeHtml(row.recipients?.[0] || '')}">Retry</button>`
+            : '<span class="text-xs text-gray-600">—</span>'}
+        </td>
+      </tr>`;
+    }).join('');
+
+    body.querySelectorAll<HTMLButtonElement>('.retry-notification').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const recipient = prompt('Confirm or correct the recipient for this retry:', button.dataset.recipient || '');
+        if (!recipient) return;
+        button.disabled = true;
+        button.textContent = 'Retrying…';
+        const response = await fetch('/api/notifications', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'retry', id: button.dataset.id, recipient: recipient.trim() }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          showFeedback(payload.error || 'Retry failed', 'error');
+          button.disabled = false;
+          button.textContent = 'Retry';
+          return;
+        }
+        showFeedback('Retry accepted by Resend. Delivery status will update through the webhook.', 'success');
+        await loadNotifications();
+      });
+    });
+  }
+
+  async function loadNotifications() {
+    const loading = document.getElementById('notificationsLoading')!;
+    const table = document.getElementById('notificationsTableWrap')!;
+    const empty = document.getElementById('notificationsEmpty')!;
+    loading.classList.remove('hidden');
+    table.classList.add('hidden');
+    empty.classList.add('hidden');
+
+    const status = (document.getElementById('notificationStatus') as HTMLSelectElement).value;
+    const params = new URLSearchParams({ status, page: String(page), page_size: String(pageSize) });
+    const response = await fetch(`/api/notifications?${params.toString()}`);
+    const payload = await response.json().catch(() => ({}));
+    loading.classList.add('hidden');
+    if (!response.ok) {
+      showFeedback(payload.error || 'Failed to load email notifications', 'error');
+      empty.classList.remove('hidden');
+      return;
+    }
+
+    const rows = Array.isArray(payload.data) ? payload.data : [];
+    totalRows = Number(payload.count || 0);
+    document.getElementById('totalTracked')!.textContent = String(payload.summary?.total || 0);
+    document.getElementById('totalDelivered')!.textContent = String(payload.summary?.delivered || 0);
+    document.getElementById('totalInFlight')!.textContent = String(payload.summary?.in_flight || 0);
+    document.getElementById('totalAttention')!.textContent = String(payload.summary?.attention || 0);
+    document.getElementById('notificationPageLabel')!.textContent = totalRows
+      ? `Showing ${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, totalRows)} of ${totalRows}`
+      : '0 results';
+    (document.getElementById('notificationsPrev') as HTMLButtonElement).disabled = page <= 1;
+    (document.getElementById('notificationsNext') as HTMLButtonElement).disabled = page * pageSize >= totalRows;
+
+    if (rows.length === 0) empty.classList.remove('hidden');
+    else {
+      renderRows(rows);
+      table.classList.remove('hidden');
+    }
+  }
+
+  document.getElementById('notificationStatus')?.addEventListener('change', () => { page = 1; void loadNotifications(); });
+  document.getElementById('refreshNotifications')?.addEventListener('click', () => void loadNotifications());
+  document.getElementById('notificationsPrev')?.addEventListener('click', () => { page = Math.max(1, page - 1); void loadNotifications(); });
+  document.getElementById('notificationsNext')?.addEventListener('click', () => { page += 1; void loadNotifications(); });
+  void loadNotifications();
+</script>

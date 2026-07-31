@@ -1,7 +1,8 @@
 import type { APIRoute } from 'astro';
 import { createAuthenticatedClient } from '../../lib/supabase-server';
 import { supabaseAdmin } from '../../lib/supabase';
-import { sendEmail, PUBLIC_APP_URL } from '../../lib/email';
+import { PUBLIC_APP_URL } from '../../lib/email';
+import { sendTrackedEmail } from '../../lib/notifications';
 import { adminInviteEmail } from '../../lib/email-templates';
 
 export const POST: APIRoute = async ({ request, cookies }) => {
@@ -76,7 +77,16 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     login_url: `${PUBLIC_APP_URL}/login`,
     temp_password: tempPassword,
   });
-  const sendResp = await sendEmail({ to: email, subject, html });
+  const sendResp = await sendTrackedEmail(supabase, {
+    recipient_id: created.user.id,
+    type: 'system',
+    recipients: [email],
+    subject,
+    html,
+    body: 'Administrator account invitation',
+    retryable: false,
+    context: { kind: 'admin_invite', user_id: created.user.id },
+  });
 
   try {
     await supabase.from('admin_actions').insert({
@@ -90,8 +100,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   return new Response(JSON.stringify({
     success: true,
     email,
-    emailed: sendResp.ok,
-    email_error: sendResp.ok ? undefined : sendResp.error,
+    emailed: sendResp.sent,
+    email_error: sendResp.sent ? undefined : sendResp.error,
     temp_password: tempPassword,
   }), {
     headers: { 'Content-Type': 'application/json' }
